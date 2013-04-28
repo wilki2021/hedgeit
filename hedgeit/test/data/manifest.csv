@@ -1,0 +1,9 @@
+description,symbol,pointValue,currency,exchange,initialMargin,maintMargin,sector,datafile,Interactive,TradeStation
+TestCommod,AC,50,USD,CBT,1760,1600,Agricultural,AC___CCB-10d.csv,Y,Y
+Cotton,CT,50,USD,CBT,1760,1600,Agricultural,CT2__CCB-10d.csv,Y,Y
+Corn,C,50,USD,CBT,2700,2000,Agricultural,C2___CCB-10d.csv,Y,Y
+LUMBER (CME),LB,110,USD,CME,2175,1450,Agricultural,LB___CCB.csv,Y,Y
+Live Cattle,LC,400,USD,CME,1350,1000,Agricultural,LC___CCB.csv,Y,Y
+Lean hogs,LH,400,USD,CME,1418,1050,Agricultural,LH___CCB.csv,Y,Y
+Oats,O,50,USD,CBT,1350,1000,Agricultural,O2___CCB.csv,Y,Y
+Rough rice,RR,20,USD,CBT,1350,1000,Agricultural,RR2__CCB.csv,Y,Y
