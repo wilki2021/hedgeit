@@ -221,7 +221,7 @@ class ClenowController(object):
             str_ = str_ + '%0.2f,%0.2f,' % (equity,margin)
             total_equity += equity
             total_margin += margin
-        str_ = str_ + '%0.2f,%0.2f' % (self.getEquity(),total_margin)
+        str_ = str_ + '%0.2f,%0.2f' % (self.getEquity()-self._startingCash,total_margin)
         self._equityfile.write('%s\n' % str_)
           
     def _print_sector_positions(self, datetime):
