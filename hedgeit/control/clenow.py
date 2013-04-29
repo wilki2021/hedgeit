@@ -11,23 +11,42 @@ from hedgeit.feeds.multifeed import MultiFeed
 from hedgeit.strategy.clenow import ClenowBreakoutStrategy
 from hedgeit.strategy.clenow import ClenowBreakoutNoIntraDayStopStrategy
 from hedgeit.analyzer.drawdown import DrawDown
+from hedgeit.broker.brokers import BacktestingFuturesBroker
+from hedgeit.broker.commissions import FuturesCommission
         
 class ClenowController(object):
-    def __init__(self, sectorMap, positionsFile, equityFile, returnsFile, cash = 1000000, riskFactor = 0.002, breakout=50, stop=3.0, tradeStart=None, intraDayStop = True):
+    def __init__(self, sectorMap, positionsFile, equityFile, returnsFile, \
+                 cash = 1000000, riskFactor = 0.002, breakout=50, stop=3.0, \
+                 tradeStart=None, intraDayStop = True):
 
         self._runGroups = {}
         self._startingCash = cash    
 
         self._db = InstrumentDb.Instance()
+        self._feed = MultiFeed()
+        self._broker = BacktestingFuturesBroker(cash, self._feed, commission=FuturesCommission(2.50)) 
         for sec in sectorMap:
-            barFeed = MultiFeed()
             for sym in sectorMap[sec]:
-                barFeed.register_feed(Feed(self._db.get(sym)))
+                self._feed.register_feed(Feed(self._db.get(sym)))
         
             if intraDayStop:
-                strategy = ClenowBreakoutStrategy(barFeed, cash, riskFactor, breakout, stop, tradeStart)
+                strategy = ClenowBreakoutStrategy(self._feed, 
+                                                  symbols=sectorMap[sec], 
+                                                  broker=self._broker, 
+                                                  cash=cash, 
+                                                  riskFactor=riskFactor, 
+                                                  breakout=breakout, 
+                                                  stop=stop, 
+                                                  tradeStart=tradeStart)
             else:
-                strategy = ClenowBreakoutNoIntraDayStopStrategy(barFeed, cash, riskFactor, breakout, stop, tradeStart)
+                strategy = ClenowBreakoutNoIntraDayStopStrategy(self._feed, 
+                                                                symbols=sectorMap[sec], 
+                                                                broker=self._broker, 
+                                                                cash=cash, 
+                                                                riskFactor=riskFactor, 
+                                                                breakout=breakout, 
+                                                                stop=stop, 
+                                                                tradeStart=tradeStart)
             self._runGroups[sec] = InstrumentedStrategy(strategy)
             
         self._trading = False
@@ -39,24 +58,10 @@ class ClenowController(object):
         self._dd.attached(self)
         
     def getBroker(self):
-        return self
+        return self._broker
 
     def getEquity(self):
-        total = 0.0
-        for sec in self._runGroups:            
-            total += self._runGroups[sec].strategy().getResult()
-        # Because of the way the controller works, we only reallly want
-        # to reflect 1 unit of starting cash, but in reality each sector
-        # is initialized with the starting amount so that position sizes
-        # are calculated as if it is really one big account.  Thus we 
-        # need to subtract off all but one of the startingCash units
-        return total - (len(self._runGroups) - 1) * self._startingCash
-    
-    def get_brokers(self):
-        ret = []
-        for sec in self._runGroups:
-            ret.append(self._runGroups[sec].strategy().getBroker())
-        return ret
+        return self._broker.getCash()
     
     def drawdown(self):
         return self._dd
@@ -80,18 +85,18 @@ class ClenowController(object):
             self._runGroups[sec].feed().set_cursor(feedStart)
             
         # emit bars one datetime at a time
-        nextDateTime = self._get_next_bar_date()
+        nextDateTime = self._feed.get_next_bars_date() 
         while nextDateTime != None and nextDateTime < tradeEnd:
             if not self._trading:
                 if nextDateTime >= tradeStart:
                     self._trading = True
                     self._handle_trade_start(nextDateTime)
                     
-            for sec in self._runGroups:
-                #print 'emitting bars for date %s' % nextDateTime
-                lastEmitDate = nextDateTime
-                self._runGroups[sec].feed().start(last=nextDateTime)
-            nextDateTime = self._get_next_bar_date()
+            #print 'emitting bars for date %s' % nextDateTime
+            lastEmitDate = nextDateTime
+            self._feed.start(last=nextDateTime)
+            
+            nextDateTime = self._feed.get_next_bars_date()
             if self._trading and nextDateTime != None:
                 self._print_sector_equity(lastEmitDate)
                 self._dd.beforeOnBars(self)
@@ -127,24 +132,10 @@ class ClenowController(object):
                          t.getNetProfit(0)))
         file_.close()
         
-    def _get_next_bar_date(self):
-        # All bars must have the same datetime. We will return all the ones with the smallest datetime.
-        smallestDateTime = None
-
-        # Make a first pass to get the smallest datetime.
-        for sec, rungroup in self._runGroups.iteritems():
-            nextdate = rungroup.feed().get_next_bars_date() 
-            if nextdate != None:
-                if (smallestDateTime != None and nextdate < smallestDateTime) or smallestDateTime == None:
-                    smallestDateTime = nextdate
-
-        return smallestDateTime
-    
     def _handle_trade_start(self, datetime):
-        self._startingEquity = {}
+        self._broker.setCash(self._startingCash)
         for sec in self._runGroups:
             self._reset_broker(self._runGroups[sec])
-            self._startingEquity[sec] = self._startingCash
         self._print_sector_positions(datetime)
         
     def _handle_trade_end(self, datetime):
@@ -169,7 +160,7 @@ class ClenowController(object):
         # starting cash down by the commission required to enter into our initial positions
         # since they are counted against us in the trade
         entry_commission = istrat.trades_analyzer().reset(istrat.strategy().getBroker().get_last_mark_to_market())
-        istrat.strategy().getBroker().setCash(self._startingCash - entry_commission)
+        self._broker.setCash(self._broker.getCash() - entry_commission)
         
     def _print_sector_returns(self):
         try:
@@ -187,16 +178,17 @@ class ClenowController(object):
         total_profit = 0.0
         str_ = ''
         for sec in sorted(self._runGroups):
-            profit = self._runGroups[sec].strategy().getResult() - self._startingEquity[sec]
+            profit = 0.0
             long_profit = 0.0
             for trade in self._runGroups[sec].trades_analyzer().trade_records():
+                profit += trade.getNetProfit(0)
                 if trade.getTradeSize() > 0:
                     long_profit += trade.getNetProfit(0)
             short_profit = profit - long_profit
             str_ = str_ + '%0.1f,%0.1f,%0.1f,' % \
-                    (long_profit / self._startingEquity[sec] * 100.0, 
-                     short_profit / self._startingEquity[sec] * 100.0,
-                     profit / self._startingEquity[sec] * 100.0)
+                    (long_profit / self._startingCash * 100.0, 
+                     short_profit / self._startingCash * 100.0,
+                     profit / self._startingCash * 100.0)
             total_long_profit += long_profit
             total_profit += profit
         total_short_profit = total_profit - total_long_profit
@@ -224,8 +216,8 @@ class ClenowController(object):
         total_equity = 0.0
         total_margin = 0.0
         for sec in sorted(self._runGroups):
-            equity = self._runGroups[sec].strategy().getBroker().getCash()
-            margin = self._runGroups[sec].strategy().getBroker().calc_margin()
+            equity = self._runGroups[sec].getEquity()
+            margin = self._runGroups[sec].calc_margin()
             str_ = str_ + '%0.2f,%0.2f,' % (equity,margin)
             total_equity += equity
             total_margin += margin

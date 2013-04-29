@@ -29,6 +29,7 @@ class Strategy(object):
         self.__activePositions = {}
         self.__orderToPosition = {}
         self.__barsProcessedEvent = observer.Event()
+        self.__orderUpdatedEvent = observer.Event()
         self.__analyzers = []
         self.__namedAnalyzers = {}
 
@@ -47,6 +48,9 @@ class Strategy(object):
 
     def getBarsProcessedEvent(self):
         return self.__barsProcessedEvent
+
+    def getOrderUpdatedEvent(self):
+        return self.__orderUpdatedEvent
 
     def __registerOrder(self, position, order):
         try:
@@ -294,6 +298,10 @@ class Strategy(object):
             # The order used to belong to a position but it was ovewritten with a new one
             # and the previous order should have been canceled.
             assert(order.isCanceled())
+            
+        # we only want to emit an event if this order was for one of our positions             
+        if position != None:
+            self.__orderUpdatedEvent.emit( broker_, order)
 
     def __checkExitOnSessionClose(self, bars):
         for position in self.__activePositions.keys():

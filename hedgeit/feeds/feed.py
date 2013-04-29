@@ -140,6 +140,19 @@ class Feed(object):
         self._cursor += 1
         return b
 
+    def get_last_close(self):
+        '''
+        Returns the closing price the cursor is currently pointing to
+        
+        :returns float: clasing price
+        '''
+        # the cursor is always pointing at the next value to return so
+        # we need to look at the one previous
+        if self._cursor <= 0 or self._cursor >= self._len:
+            return 0.0
+        else:
+            return self._values[4][self._cursor-1] 
+        
     def values(self):
         '''Returns the array of data serios.'''
         return self._values    

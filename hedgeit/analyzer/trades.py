@@ -131,7 +131,7 @@ class Trades(analyzer.StrategyAnalyzer):
 		self.__updatePosTracker(posTracker, order.getExecutionInfo().getDateTime(), price, commission, quantity)
 
 	def attached(self, strat):
-		strat.getBroker().getOrderUpdatedEvent().subscribe(self.__onOrderUpdate)
+		strat.getOrderUpdatedEvent().subscribe(self.__onOrderUpdate)
 
 	def getCount(self):
 		"""Returns the total number of trades."""
@@ -233,3 +233,6 @@ class Trades(analyzer.StrategyAnalyzer):
 		
 	def trade_records(self):
 		return self._tradeRecords
+	
+	def open_positions(self):
+		return self.__posTrackers

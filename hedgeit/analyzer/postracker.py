@@ -91,6 +91,9 @@ class PositionTracker(object):
         if cost != 0:
             ret = netProfit / float(cost)
         return ret
+    
+    def getMaintMargin(self):
+        return abs(self.__units) * self.__instrument.maint_margin()
 
     def __transact(self, tradeDate, quantity, price, commission = 0):
         if self.__units == 0:

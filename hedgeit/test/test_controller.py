@@ -46,7 +46,6 @@ class Test(unittest.TestCase):
         crg = ctrl._runGroups['Ag-1']
         trades = crg.trades_analyzer()
         
-        self.assertAlmostEqual(crg.strategy().getResult(),984344.90,places=2)
         self.assertEqual(trades.getCount(),6)
         self.assertEqual(trades.getProfitableCount(),1)
         self.assertEqual(trades.getUnprofitableCount(),5)

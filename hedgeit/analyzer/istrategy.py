@@ -40,3 +40,17 @@ class InstrumentedStrategy(object):
     
     def trades_analyzer(self):
         return self._tradesAnalyzer
+    
+    def getEquity(self):
+        equity = 0.0
+        for trade in self._tradesAnalyzer.trade_records():
+            equity += trade.getNetProfit(0.0)
+        for pos in self._tradesAnalyzer.open_positions().itervalues():
+            equity += pos.getNetProfit(self.feed().get_last_close(pos.getSymbol()))
+        return equity
+    
+    def calc_margin(self):
+        margin = 0.0
+        for pos in self._tradesAnalyzer.open_positions().itervalues():
+            margin += pos.getMaintMargin()
+        return margin

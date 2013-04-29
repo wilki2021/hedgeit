@@ -76,6 +76,7 @@ class Test(unittest.TestCase):
         w = Feed(self._inst)        
         w.insert( talibfunc.ATR('ATR10',w,10) )
         w.set_cursor(None)
+        self.assertEqual(w.get_last_close(), 0.0 )
         b = w.get_current_bar()
         self.assertEqual(b.datetime(), datetime.datetime(2012,1,23,0,0))
         self.assertTrue(math.isnan(b.ATR10()))
@@ -91,6 +92,7 @@ class Test(unittest.TestCase):
         w = Feed(self._inst)
         w.set_cursor(datetime.datetime(2012,6,29,0,0))
         self.assertEqual(w.get_next_bar_date(), datetime.datetime(2012,6,29,0,0))
+        self.assertEqual(w.get_last_close(), 2.182 )
 
     def testBadNewSeries(self):
         w = Feed(self._inst)

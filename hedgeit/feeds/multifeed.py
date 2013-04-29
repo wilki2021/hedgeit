@@ -126,5 +126,9 @@ class MultiFeed(object):
         return self._current_bars
     
     def get_current_bars(self):
-        '''Returns that last set of bars that were emitted by the feed.'''
+        '''Returns the last set of bars that were emitted by the feed.'''
         return self._current_bars
+    
+    def get_last_close(self, symbol):
+        '''Returns the last closing price for symbol.'''
+        return self._feeds[symbol].get_last_close()

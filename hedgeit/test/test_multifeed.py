@@ -88,6 +88,7 @@ class Test(unittest.TestCase):
         mf.subscribe(self.on_bars_basic)
         mf.start(first=datetime.datetime(2012,7,1),last=datetime.datetime(2012,7,31))
         self.assertEqual(self._count, 22)
+        self.assertEqual(mf.get_last_close('AC'), 2.565)
 
     def testFirstLastBoundary(self):
         f1 = Feed(self._inst1)
