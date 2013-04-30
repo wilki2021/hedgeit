@@ -13,11 +13,12 @@ from hedgeit.strategy.clenow import ClenowBreakoutNoIntraDayStopStrategy
 from hedgeit.analyzer.drawdown import DrawDown
 from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
+import numpy
         
 class ClenowController(object):
     def __init__(self, sectorMap, positionsFile, equityFile, returnsFile, \
                  cash = 1000000, riskFactor = 0.002, breakout=50, stop=3.0, \
-                 tradeStart=None, intraDayStop = True):
+                 tradeStart=None, intraDayStop = True, summaryFile=None):
 
         self._runGroups = {}
         self._startingCash = cash    
@@ -53,6 +54,10 @@ class ClenowController(object):
         self._posfile = open(positionsFile,"w")
         self._equityfile = open(equityFile,"w")
         self._returnsfile = open(returnsFile,"w")
+        if summaryFile:
+            self._summaryfile = open(summaryFile,"w")
+        else:
+            self._summaryfile = open("/dev/null","w")
         
         self._dd = DrawDown()
         self._dd.attached(self)
@@ -148,10 +153,12 @@ class ClenowController(object):
 
         self._dd.beforeOnBars(self)
         self._print_sector_equity(datetime)
+        self._print_returns_summary(datetime, final=True)
         self._print_sector_returns()
         self._posfile.close()
         self._equityfile.close()
         self._returnsfile.close()
+        self._summaryfile.close()
      
     def _reset_broker(self, istrat):
         '''Resets the equity in the broker to our starting cash position.'''
@@ -198,8 +205,45 @@ class ClenowController(object):
                  total_profit / self._startingCash * 100.0)
         self._returnsfile.write('%s\n' % str_)
         self._totalProfit = total_profit
+
+    def _print_returns_summary(self, datetime, final=False): 
+        try:
+            self._summaryHeader
+        except:
+            # means we need to print headers
+            self._summaryHeader = True
+            self._sumCurMonth = None
+            self._sumCurYear = None
+            str_ = 'Year,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec,Full Year'
+            self._summaryfile.write('%s\n' % str_)
+
+        if self._sumCurYear != datetime.year or final:
+            if self._sumCurYear or final:
+                # this means the year just rolled on us and we have to output a new row
+                self._sumMonthData[self._sumCurMonth-1] = (self.getEquity() - self._sumMonthStart) / self._sumMonthStart * 100.0
+                str_ = '%s,' % self._sumCurYear
+                for r in self._sumMonthData:
+                    str_ = str_ + '%0.1f,' % r
+                str_ = str_ + '%0.1f' % (((self.getEquity() - self._sumYearStart) / self._sumYearStart) * 100.0)
+                self._summaryfile.write('%s\n' % str_)                
             
-    def _print_sector_equity(self, datetime): 
+            # now reset and get ready for this year
+            self._sumCurYear = datetime.year
+            self._sumCurMonth = datetime.month
+            self._sumMonthData = numpy.zeros(12)
+            self._sumYearStart = self.getEquity()
+            self._sumMonthStart = self.getEquity()
+        elif self._sumCurMonth != datetime.month:
+            # the month rolled on us so put a new entry in
+            self._sumMonthData[self._sumCurMonth-1] = (((self.getEquity() - self._sumMonthStart) / self._sumMonthStart)*100.0) 
+            self._sumMonthStart = self.getEquity()
+            self._sumCurMonth = datetime.month
+        else:
+            # nothing to do - just a mid-month data point
+            pass
+            
+    def _print_sector_equity(self, datetime):
+        self._print_returns_summary(datetime) 
         try:
             self._equityheader
         except:

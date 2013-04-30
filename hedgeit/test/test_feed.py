@@ -7,9 +7,12 @@ import unittest
 import os, datetime, numpy
 from hedgeit.feeds.feed import Feed
 from hedgeit.feeds.indicators.atr import ATR
+from hedgeit.feeds.indicators.pvelocity import PriceVelocity
 from hedgeit.feeds.indicators import talibfunc
 from hedgeit.feeds.instrument import Instrument
 import math
+
+import test_util
 
 class Test(unittest.TestCase):
 
@@ -100,6 +103,24 @@ class Test(unittest.TestCase):
         with self.assertRaisesRegexp(Exception,"Error adding new series.*"):        
             w._add_series('foobar', [1,2,3,4,5])
                         
+    def testPriceVelocity(self):
+        w = Feed(self._inst)
+        w.insert( talibfunc.SMA('SMA50',w,50))        
+        w.insert( PriceVelocity('PVEL',period=10,baseIndicator='SMA50') )
+        self.assertEqual( len(w.values()), 8 )
+        self.assertEqual( len(w.values()[0]), 252 )
+        self.assertAlmostEqual( w.get_series('PVEL')[251], -0.001576, places=4 )
+
+        feedout = '%s/writefeed.csv' % os.path.dirname(__file__)
+        
+        wf = open(feedout,'w')
+        w.write_csv(wf)
+        wf.close()
+        
+        self.assertTrue(test_util.file_compare('%s/writefeed.refcsv' % os.path.dirname(__file__), feedout))
+        os.system('rm %s' % feedout)
+
+        
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testBasic']
     unittest.main()

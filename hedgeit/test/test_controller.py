@@ -34,8 +34,9 @@ class Test(unittest.TestCase):
         plog = '%s/positions.csv' % os.path.dirname(__file__)
         elog = '%s/equity.csv' % os.path.dirname(__file__)
         rlog = '%s/returns.csv' % os.path.dirname(__file__)
+        slog = '%s/summary.csv' % os.path.dirname(__file__)
 
-        ctrl = ClenowController({ 'Ag-1' : ['RR','LH','O'], 'Ag-2' : ['LB','LC']}, plog, elog, rlog)
+        ctrl = ClenowController({ 'Ag-1' : ['RR','LH','O'], 'Ag-2' : ['LB','LC']}, plog, elog, rlog, summaryFile=slog)
         ctrl.run(datetime.datetime(2011,12,31),datetime.datetime(2012,8,1),datetime.datetime(2013,12,31))
 
         tlog = '%s/trade4.log' % os.path.dirname(__file__)
@@ -58,6 +59,8 @@ class Test(unittest.TestCase):
         os.system('rm %s' % elog)
         self.assertTrue(test_util.file_compare('%s/returns.refcsv' % os.path.dirname(__file__), rlog))
         os.system('rm %s' % rlog)
+        self.assertTrue(test_util.file_compare('%s/summary.refcsv' % os.path.dirname(__file__), slog))
+        os.system('rm %s' % slog)
 
 
 

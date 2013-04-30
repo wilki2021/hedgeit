@@ -50,11 +50,11 @@ class ClenowBreakoutStrategy(Strategy):
     def __prep_bar_feed(self):
         for sym in self._symbols:
             feed = self.__barFeed.get_feed(sym)
-            feed.insert( talibfunc.SMA('short_ma',feed,50) )
-            feed.insert( talibfunc.SMA('long_ma',feed,100) )
+            feed.insert( talibfunc.SMA('short_ma',feed,self._breakout) )
+            feed.insert( talibfunc.SMA('long_ma',feed,2*self._breakout) )
             feed.insert( talibfunc.MAX('max',feed,self._breakout) )
             feed.insert( talibfunc.MIN('min',feed,self._breakout) )
-            feed.insert( ATR( name='atr', period=100 ) )
+            feed.insert( ATR( name='atr', period=2*self._breakout ) )
     
     def onExitOk(self, position):
         if self._positions.has_key(position.getInstrument()):

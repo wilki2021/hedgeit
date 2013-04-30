@@ -1,5 +1,5 @@
-{ "Agricultural" : ["CT","C","LB","LC","LH","O","RR","S","SB","W"],
-  "Energy/Metals" : ["GLI","CL","HO","NG","GC","PA","PL","SI"],
+{ "Ag" : ["CT","C","LB","LC","LH","O","RR","S","SB","W"],
+  "Non-Ag" : ["HG","RB","GLI","CL","HO","NG","GC","PA","PL","SI"],
   "Currencies" : ["AD","BP","EC","JY","NE","SF","CD"],
   "Equities" : ["FCE","FDAX","LFT","ND","NK","SP","FESX","TF"],
   "Rates" : ["FGBL","FGBS","LLG","BAX","TU","TY","ED","LES","LEU","LSS"]}

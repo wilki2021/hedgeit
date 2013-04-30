@@ -171,4 +171,17 @@ class Feed(object):
             arr[i] = func(self._inst.bars()[i])           
         self._add_series(name, arr)
         
-        
+    def write_csv(self, handle):
+        header = 'Datetime,Open,High,Low,Close,Volume'
+        for ind in self._indictrs:
+            header = header + ',%s' % ind.name()
+        handle.write('%s\n' % header)
+        for i in range(0, self._len):
+            row_ = ''
+            first = True
+            for v in self._values:
+                if not first:
+                    row_ = row_ + ','
+                row_ = row_ + '%s' % v[i]
+                first = False
+            handle.write('%s\n' % row_)
