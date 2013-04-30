@@ -21,9 +21,16 @@ usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
         -h          : show usage
         -c <number> : set the starting (per sector) equity (default = 1000000)
         -r <number> : set the risk factor (default = 0.002)
-        -b <integer>: set the breakout window length (default = 50)
+        -p <integer>: set the strategy period (default = 50)
+                      the meaning of period is strategy-dependent as follows:
+                        breakout - breakout min/max = period
+                                   short moving average = period
+                                   long moving average = period*2
+                        macross  - short moving average = period / 10
+                                   long moving average = period
         -s <number> : set the stop multiplier (in ATR units) (default = 3.0)
-        -n          : no intra-day stops (default = intra-day
+        -n          : no intra-day stops (default = intra-day)
+        -t          : model type ('breakout' or 'macross', default = 'breakout')
         
     manifest   : file containing information on tradable instruments.  The file
                  is CSV format - see hedgeit.feeds.db for information
@@ -40,7 +47,7 @@ usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
     
 def main(argv=None):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hc:r:b:s:n", [])
+        opts, args = getopt.getopt(sys.argv[1:], "hc:r:p:s:nt:", [])
     except getopt.GetoptError as err:
         # print help information and exit:
         print str(err) # will print something like "option -a not recognized"
@@ -49,9 +56,10 @@ def main(argv=None):
 
     cash = 1000000
     risk = 0.002
-    breakout = 50
+    period = 50
     stop = 3.0
     intraDay = True
+    type_ = 'breakout'
     for o, a in opts:
         if o == "-c":
             cash = float(a)
@@ -59,15 +67,18 @@ def main(argv=None):
         elif o == '-r':
             risk = float(a)
             Log.info('Setting risk level to: %0.4f' % risk)
-        elif o == "-b":
-            breakout = int(a)
-            Log.info('Setting breakout window to: %d' % breakout)
+        elif o == "-p":
+            period = int(a)
+            Log.info('Setting period to: %d' % period)
         elif o == "-s":
             stop = float(a)
             Log.info('Setting stop multiple to: %0.1f' % stop)
         elif o == "-n":
             intraDay = False
             Log.info('Turning off intra-day stops')
+        elif o == "-t":
+            type_ = a
+            Log.info('Using model %s' % type_)
         else:
             usage()
             return
@@ -89,8 +100,11 @@ def main(argv=None):
     plog = 'positions.csv'
     elog = 'equity.csv'
     rlog = 'returns.csv'
-
-    ctrl = ClenowController(sectormap, plog, elog, rlog,cash=cash,riskFactor=risk,breakout=breakout,stop=stop,intraDayStop=intraDay)
+    slog = 'summary.csv'
+    
+    ctrl = ClenowController(sectormap, plog, elog, rlog,cash=cash,riskFactor=risk,
+                            period=period,stop=stop,intraDayStop=intraDay,
+                            summaryFile=slog,modelType=type_)
     ctrl.run(feedStart, tradeStart, tradeEnd)
 
     tlog = 'trades.csv'

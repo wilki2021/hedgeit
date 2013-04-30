@@ -186,14 +186,25 @@ class Order:
         return self.__executionInfo
     
     def __str__(self):
-        str_ = 'Order(type:%s,action:%s,symbol:%s,quantity:%d,gtc:%s,allOrNone:%s,state:%s)' %\
-            (Order.Type.type_strs[self.__type],
-             Order.Action.action_strs[self.__action],
-             self.__instrument,
-             self.__quantity,
-             self.__goodTillCanceled,
-             self.__allOrNone,
-             Order.State.state_strs[self.__state])
+        try:
+            str_ = 'Order(type:%s,action:%s,symbol:%s,quantity:%d,gtc:%s,allOrNone:%s,state:%s)' %\
+                (Order.Type.type_strs[self.__type],
+                 Order.Action.action_strs[self.__action],
+                 self.__instrument,
+                 self.__quantity,
+                 self.__goodTillCanceled,
+                 self.__allOrNone,
+                 Order.State.state_strs[self.__state])
+        except:
+            # helps with debugging any issues
+            print Order.Type.type_strs[self.__type]            
+            print Order.Action.action_strs[self.__action]
+            print self.__instrument
+            print self.__quantity
+            print self.__goodTillCanceled
+            print self.__allOrNone
+            print Order.State.state_strs[self.__state]
+            assert(False)
         return str_
     
 class MarketOrder(Order):

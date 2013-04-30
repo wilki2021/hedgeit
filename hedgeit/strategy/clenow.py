@@ -19,7 +19,7 @@ logger = getLogger("strategy.clenow")
 
 class ClenowBreakoutStrategy(Strategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, breakout=50, stop=3.0, tradeStart=None):
+                 riskFactor = 0.002, period=50, stop=3.0, tradeStart=None):
         if broker is None:
             broker = BacktestingFuturesBroker(cash, barFeed, commission=FuturesCommission(2.50))
         if symbols is None:
@@ -32,7 +32,7 @@ class ClenowBreakoutStrategy(Strategy):
         self._started = False
         self._db = InstrumentDb.Instance()
         self._riskfactor = riskFactor
-        self._breakout = breakout
+        self._period = period
         self._stop = stop
         self._tradeHigh = {}
         self._tradeLow = {}
@@ -50,11 +50,11 @@ class ClenowBreakoutStrategy(Strategy):
     def __prep_bar_feed(self):
         for sym in self._symbols:
             feed = self.__barFeed.get_feed(sym)
-            feed.insert( talibfunc.SMA('short_ma',feed,self._breakout) )
-            feed.insert( talibfunc.SMA('long_ma',feed,2*self._breakout) )
-            feed.insert( talibfunc.MAX('max',feed,self._breakout) )
-            feed.insert( talibfunc.MIN('min',feed,self._breakout) )
-            feed.insert( ATR( name='atr', period=2*self._breakout ) )
+            feed.insert( talibfunc.SMA('short_ma',feed,self._period) )
+            feed.insert( talibfunc.SMA('long_ma',feed,2*self._period) )
+            feed.insert( talibfunc.MAX('max',feed,self._period) )
+            feed.insert( talibfunc.MIN('min',feed,self._period) )
+            feed.insert( ATR( name='atr', period=2*self._period ) )
     
     def onExitOk(self, position):
         if self._positions.has_key(position.getInstrument()):
@@ -138,9 +138,9 @@ class ClenowBreakoutStrategy(Strategy):
         
 class ClenowBreakoutNoIntraDayStopStrategy(ClenowBreakoutStrategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, breakout=50, stop=3.0, tradeStart=None):
+                 riskFactor = 0.002, period=50, stop=3.0, tradeStart=None):
         ClenowBreakoutStrategy.__init__(self, barFeed, symbols, broker, cash,\
-                                        riskFactor, breakout, stop, tradeStart)
+                                        riskFactor, period, stop, tradeStart)
 
     def onBars(self, bars):
         #print 'On date %s, cash = %f' % (bars[bars.keys()[0]]['Datetime'], self.getBroker().getCash())

@@ -10,6 +10,7 @@ from hedgeit.feeds.db import InstrumentDb
 from hedgeit.feeds.multifeed import MultiFeed
 from hedgeit.strategy.clenow import ClenowBreakoutStrategy
 from hedgeit.strategy.clenow import ClenowBreakoutNoIntraDayStopStrategy
+from hedgeit.strategy.macross import MACrossStrategy
 from hedgeit.analyzer.drawdown import DrawDown
 from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
@@ -17,8 +18,9 @@ import numpy
         
 class ClenowController(object):
     def __init__(self, sectorMap, positionsFile, equityFile, returnsFile, \
-                 cash = 1000000, riskFactor = 0.002, breakout=50, stop=3.0, \
-                 tradeStart=None, intraDayStop = True, summaryFile=None):
+                 cash = 1000000, riskFactor = 0.002, period=50, stop=3.0, \
+                 tradeStart=None, intraDayStop = True, summaryFile=None,
+                 modelType=None):
 
         self._runGroups = {}
         self._startingCash = cash    
@@ -30,24 +32,38 @@ class ClenowController(object):
             for sym in sectorMap[sec]:
                 self._feed.register_feed(Feed(self._db.get(sym)))
         
-            if intraDayStop:
-                strategy = ClenowBreakoutStrategy(self._feed, 
-                                                  symbols=sectorMap[sec], 
-                                                  broker=self._broker, 
-                                                  cash=cash, 
-                                                  riskFactor=riskFactor, 
-                                                  breakout=breakout, 
-                                                  stop=stop, 
-                                                  tradeStart=tradeStart)
+            if not modelType or modelType == 'breakout':
+                if intraDayStop:
+                    strategy = ClenowBreakoutStrategy(self._feed, 
+                                                      symbols=sectorMap[sec], 
+                                                      broker=self._broker, 
+                                                      cash=cash, 
+                                                      riskFactor=riskFactor, 
+                                                      period=period, 
+                                                      stop=stop, 
+                                                      tradeStart=tradeStart)
+                else:
+                    strategy = ClenowBreakoutNoIntraDayStopStrategy(self._feed, 
+                                                                    symbols=sectorMap[sec], 
+                                                                    broker=self._broker, 
+                                                                    cash=cash, 
+                                                                    riskFactor=riskFactor, 
+                                                                    period=period, 
+                                                                    stop=stop, 
+                                                                    tradeStart=tradeStart)
+            elif modelType == 'macross':
+                strategy = MACrossStrategy(self._feed, 
+                                           symbols=sectorMap[sec], 
+                                           broker=self._broker, 
+                                           cash=cash, 
+                                           riskFactor=riskFactor, 
+                                           shortPeriod=period / 10,
+                                           longPeriod=period, 
+                                           stop=stop, 
+                                           tradeStart=tradeStart)
             else:
-                strategy = ClenowBreakoutNoIntraDayStopStrategy(self._feed, 
-                                                                symbols=sectorMap[sec], 
-                                                                broker=self._broker, 
-                                                                cash=cash, 
-                                                                riskFactor=riskFactor, 
-                                                                breakout=breakout, 
-                                                                stop=stop, 
-                                                                tradeStart=tradeStart)
+                raise Exception('Unsupported modelType = %s' % modelType)
+            
             self._runGroups[sec] = InstrumentedStrategy(strategy)
             
         self._trading = False
