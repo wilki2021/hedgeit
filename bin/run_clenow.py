@@ -111,8 +111,8 @@ def main(argv=None):
     tlog = 'trades.csv'
     ctrl.writeAllTrades(tlog)
     
-    Log.info('Net return  :  %0.1f%%' % (ctrl.net_return() * 100.0))
-    Log.info('Max drawdown: -%0.1f%%' % (ctrl.drawdown().getMaxDrawDown() * 100.0))
+    Log.info('Net return     :  %0.1f%%' % (ctrl.net_return() * 100.0))
+    Log.info('Max drawdown   : -%0.1f%%' % (ctrl.drawdown().getMaxDrawDown() * 100.0))
 
 if __name__ == "__main__":
     sys.exit(main())

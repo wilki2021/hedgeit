@@ -16,6 +16,9 @@ from hedgeit.analyzer.drawdown import DrawDown
 from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
 import numpy
+from hedgeit.common.logger import getLogger
+
+logger = getLogger("broker.backtesting")
         
 class ClenowController(object):
     def __init__(self, sectorMap, positionsFile, equityFile, returnsFile, \
@@ -154,10 +157,16 @@ class ClenowController(object):
         self._tradeProfit = 0.0
                 
         file_ = open(filename,'w')
+        
+        wins = 0
+        winamt = 0.0
+        winmargin = 0.0
+        losemargin = 0.0
         # write the header row
         file_.write('description,symbol,units,entryDate,entryPrice,exitDate,exitPrice,commissions,profitLoss\n')
         for t in alltrades:
             self._tradeProfit += t.getNetProfit(0)
+            profit = t.getNetProfit(0)
             file_.write('%s,%s,%d,%s,%f,%s,%f,%0.2f,%0.2f\n' % 
                         (self._db.get(t.getSymbol()).description(),
                          t.getSymbol(),
@@ -167,8 +176,22 @@ class ClenowController(object):
                          t.getExitDate(),
                          t.getExitPrice(),
                          t.getCommissions(),
-                         t.getNetProfit(0)))
-        file_.close()
+                         profit))
+            if profit > 0.0:
+                wins += 1
+                winamt += profit
+                winmargin += t.getInitialMargin()
+            else:
+                losemargin += t.getInitialMargin()
+        file_.close()         
+        
+        logger.info('Total Trades    : %d' % len(alltrades))   
+        logger.info('Total Net Profit: $%0.2f' % self._tradeProfit)   
+        logger.info('Total Avg Profit: $%0.2f' % (self._tradeProfit / len(alltrades)))   
+        logger.info('Winning Trades  : %d (%0.1f%%)' % (wins, wins * 100.0 / len(alltrades)))   
+        logger.info('Average Winner  : $%0.2f (%0.3f%%)' % (winamt/ wins, (winamt/wins) * 100.0/winmargin))   
+        logger.info('Losing   Trades : %d (%0.1f%%)' % (len(alltrades) - wins,(len(alltrades) - wins) * 100.0/len(alltrades)))   
+        logger.info('Average Loser   : $%0.2f (%0.3f%%)' % ((self._tradeProfit - winamt) / (len(alltrades) - wins),(self._tradeProfit - winamt) / (len(alltrades) - wins)*100.0/losemargin))   
         
     def _handle_trade_start(self, datetime):
         self._broker.setCash(self._startingCash)

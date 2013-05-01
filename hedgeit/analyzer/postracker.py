@@ -92,8 +92,13 @@ class PositionTracker(object):
             ret = netProfit / float(cost)
         return ret
     
+    def getInitialMargin(self):
+        # TODO - this only works if trades never change in size
+        return abs(self.__tradeSize) * self.__instrument.maint_margin()
+
     def getMaintMargin(self):
-        return abs(self.__units) * self.__instrument.maint_margin()
+        # TODO - this only works if trades never change in size
+        return abs(self.__tradeSize) * self.__instrument.maint_margin()
 
     def __transact(self, tradeDate, quantity, price, commission = 0):
         if self.__units == 0:
