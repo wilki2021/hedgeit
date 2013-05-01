@@ -28,9 +28,10 @@ usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
                                    long moving average = period*2
                         macross  - short moving average = period / 10
                                    long moving average = period
+                        rsicounter-rsi period = period 
         -s <number> : set the stop multiplier (in ATR units) (default = 3.0)
         -n          : no intra-day stops (default = intra-day)
-        -t          : model type ('breakout' or 'macross', default = 'breakout')
+        -t          : model type ('breakout', 'macross', or 'rsicounter', default = 'breakout')
         
     manifest   : file containing information on tradable instruments.  The file
                  is CSV format - see hedgeit.feeds.db for information

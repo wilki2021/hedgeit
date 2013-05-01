@@ -54,7 +54,7 @@ class MACrossStrategy(Strategy):
             feed = self.__barFeed.get_feed(sym)
             feed.insert( talibfunc.SMA('short_ma',feed,self._short_period) )
             feed.insert( talibfunc.SMA('long_ma',feed,self._long_period) )
-            feed.insert( ATR( name='atr', period=100 ) )
+            feed.insert( ATR( name='atr', period=self._long_period ) )
     
     def onExitOk(self, position):
         longshort = 'long' if position.isLong() else 'short'

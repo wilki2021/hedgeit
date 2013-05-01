@@ -11,6 +11,7 @@ from hedgeit.feeds.multifeed import MultiFeed
 from hedgeit.strategy.clenow import ClenowBreakoutStrategy
 from hedgeit.strategy.clenow import ClenowBreakoutNoIntraDayStopStrategy
 from hedgeit.strategy.macross import MACrossStrategy
+from hedgeit.strategy.rsicounter import RSICounterStrategy
 from hedgeit.analyzer.drawdown import DrawDown
 from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
@@ -32,10 +33,17 @@ class ClenowController(object):
             for sym in sectorMap[sec]:
                 self._feed.register_feed(Feed(self._db.get(sym)))
         
+            # if desired can instatiate a strategy per symbol - may actually
+            # want to think about this as a default behavior.  The only thing
+            # impacted is reporting of sector results
+            # strategySymbols = { sym }
+            # rgkey = '%s-%s' % (sec, sym)           
+            strategySymbols = sectorMap[sec]
+            rgkey = sec           
             if not modelType or modelType == 'breakout':
                 if intraDayStop:
                     strategy = ClenowBreakoutStrategy(self._feed, 
-                                                      symbols=sectorMap[sec], 
+                                                      symbols=strategySymbols, 
                                                       broker=self._broker, 
                                                       cash=cash, 
                                                       riskFactor=riskFactor, 
@@ -44,7 +52,7 @@ class ClenowController(object):
                                                       tradeStart=tradeStart)
                 else:
                     strategy = ClenowBreakoutNoIntraDayStopStrategy(self._feed, 
-                                                                    symbols=sectorMap[sec], 
+                                                                    symbols=strategySymbols, 
                                                                     broker=self._broker, 
                                                                     cash=cash, 
                                                                     riskFactor=riskFactor, 
@@ -53,7 +61,7 @@ class ClenowController(object):
                                                                     tradeStart=tradeStart)
             elif modelType == 'macross':
                 strategy = MACrossStrategy(self._feed, 
-                                           symbols=sectorMap[sec], 
+                                           symbols=strategySymbols, 
                                            broker=self._broker, 
                                            cash=cash, 
                                            riskFactor=riskFactor, 
@@ -61,10 +69,19 @@ class ClenowController(object):
                                            longPeriod=period, 
                                            stop=stop, 
                                            tradeStart=tradeStart)
+            elif modelType == 'rsicounter':
+                strategy = RSICounterStrategy(self._feed, 
+                                           symbols=strategySymbols, 
+                                           broker=self._broker, 
+                                           cash=cash, 
+                                           riskFactor=riskFactor, 
+                                           period=period, 
+                                           stop=stop, 
+                                           tradeStart=tradeStart)
             else:
                 raise Exception('Unsupported modelType = %s' % modelType)
             
-            self._runGroups[sec] = InstrumentedStrategy(strategy)
+            self._runGroups[rgkey] = InstrumentedStrategy(strategy)
             
         self._trading = False
         self._posfile = open(positionsFile,"w")
@@ -191,10 +208,7 @@ class ClenowController(object):
         except:
             # means we need to print headers
             self._returnheader = True
-            str_ = ''
-            for sec in sorted(self._runGroups):
-                str_ = str_ + '%s-Long %%,%s-Short %%,%s-Total %%,' % (sec,sec,sec)
-            str_ = str_ + 'Total Long %,Total Short %,Total %'
+            str_ = 'Name,Long %,Short %,Total %'
             self._returnsfile.write('%s\n' % str_)
 
         total_long_profit = 0.0
@@ -208,14 +222,16 @@ class ClenowController(object):
                 if trade.getTradeSize() > 0:
                     long_profit += trade.getNetProfit(0)
             short_profit = profit - long_profit
-            str_ = str_ + '%0.1f,%0.1f,%0.1f,' % \
-                    (long_profit / self._startingCash * 100.0, 
+            str_ = '%s,%0.1f,%0.1f,%0.1f' % \
+                    (sec,
+                     long_profit / self._startingCash * 100.0, 
                      short_profit / self._startingCash * 100.0,
                      profit / self._startingCash * 100.0)
             total_long_profit += long_profit
             total_profit += profit
+            self._returnsfile.write('%s\n' % str_)
         total_short_profit = total_profit - total_long_profit
-        str_ = str_ + '%0.1f,%0.1f,%0.1f' % \
+        str_ = 'total,%0.1f,%0.1f,%0.1f' % \
                 (total_long_profit / self._startingCash * 100.0, 
                  total_short_profit / self._startingCash * 100.0,
                  total_profit / self._startingCash * 100.0)

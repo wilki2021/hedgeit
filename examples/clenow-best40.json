@@ -1,0 +1,5 @@
+{ "Ag" : ["CT","LB","RR","S","SB","W"],
+  "Non-Ag" : ["HG","RB","GLI","CL","HO","NG","GC","PA","SI"],
+  "Currencies" : ["AD","BP","EC","JY","SF","CD"],
+  "Equities" : ["FCE","FDAX","ND","NK","SP"],
+  "Rates" : ["FGBS","LLG","BAX","TU","TY","ED","LES","LEU","LSS"]}

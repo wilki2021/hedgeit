@@ -1,2 +1,4 @@
-Ag-1-Long %,Ag-1-Short %,Ag-1-Total %,Ag-2-Long %,Ag-2-Short %,Ag-2-Total %,Total Long %,Total Short %,Total %
--1.1,-0.5,-1.6,1.8,0.0,1.8,0.7,-0.5,0.2
+Name,Long %,Short %,Total %
+Ag-1,-1.1,-0.5,-1.6
+Ag-2,1.8,0.0,1.8
+total,0.7,-0.5,0.2

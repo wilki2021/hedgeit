@@ -62,3 +62,8 @@ def MIN(name,feed,timeperiod):
 def SMA(name,feed,timeperiod):
     """Simple Moving Average"""
     return TalibFunc(name,feed,talib.SMA,call_talib_with_c,timeperiod) 
+
+def RSI(name,feed,timeperiod):
+    """Relative Strength Index"""
+    return TalibFunc(name,feed,talib.RSI,call_talib_with_c,timeperiod)
+
