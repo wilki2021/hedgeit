@@ -1,5 +1,5 @@
-{ "Ag" : ["CT","LB","RR","S","SB","W"],
-  "Non-Ag" : ["HG","RB","GLI","CL","HO","NG","GC","PA","SI"],
+{ "Ag" : ["CT2","LB","RR2","S2","SB2","W2"],
+  "Non-Ag" : ["HG2","RB2","GO","CL2","HO2","NG2","GC2","PA2","SI2"],
   "Currencies" : ["AD","BP","EC","JY","SF","CD"],
-  "Equities" : ["FCE","FDAX","ND","NK","SP"],
-  "Rates" : ["FGBS","LLG","BAX","TU","TY","ED","LES","LEU","LSS"]}
+  "Equities" : ["FCE","DAX","ND","NK","SP"],
+  "Rates" : ["GBS","LLG","BAX","TU2","TY2","ED","LES","LEU","LSS"]}

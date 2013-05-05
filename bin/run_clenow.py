@@ -32,6 +32,7 @@ usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
         -s <number> : set the stop multiplier (in ATR units) (default = 3.0)
         -n          : no intra-day stops (default = intra-day)
         -t          : model type ('breakout', 'macross', or 'rsicounter', default = 'breakout')
+        -g          : no compounding of equity
         
     manifest   : file containing information on tradable instruments.  The file
                  is CSV format - see hedgeit.feeds.db for information
@@ -48,7 +49,7 @@ usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
     
 def main(argv=None):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hc:r:p:s:nt:", [])
+        opts, args = getopt.getopt(sys.argv[1:], "hc:r:p:s:nt:g", [])
     except getopt.GetoptError as err:
         # print help information and exit:
         print str(err) # will print something like "option -a not recognized"
@@ -61,6 +62,7 @@ def main(argv=None):
     stop = 3.0
     intraDay = True
     type_ = 'breakout'
+    compounding = True
     for o, a in opts:
         if o == "-c":
             cash = float(a)
@@ -80,6 +82,9 @@ def main(argv=None):
         elif o == "-t":
             type_ = a
             Log.info('Using model %s' % type_)
+        elif o == "-g":
+            compounding = False
+            Log.info('Compounding disabled')
         else:
             usage()
             return
@@ -105,11 +110,12 @@ def main(argv=None):
     
     ctrl = ClenowController(sectormap, plog, elog, rlog,cash=cash,riskFactor=risk,
                             period=period,stop=stop,intraDayStop=intraDay,
-                            summaryFile=slog,modelType=type_)
+                            summaryFile=slog,modelType=type_,compounding=compounding)
     ctrl.run(feedStart, tradeStart, tradeEnd)
 
     tlog = 'trades.csv'
     ctrl.writeAllTrades(tlog)
+    ctrl.writeTSSPTrades('tssp')
     
     Log.info('Net return     :  %0.1f%%' % (ctrl.net_return() * 100.0))
     Log.info('Max drawdown   : -%0.1f%%' % (ctrl.drawdown().getMaxDrawDown() * 100.0))

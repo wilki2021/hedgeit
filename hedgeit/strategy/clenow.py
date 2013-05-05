@@ -19,7 +19,8 @@ logger = getLogger("strategy.clenow")
 
 class ClenowBreakoutStrategy(Strategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, period=50, stop=3.0, tradeStart=None):
+                 riskFactor = 0.002, period=50, stop=3.0, tradeStart=None,
+                 compounding = True):
         if broker is None:
             broker = BacktestingFuturesBroker(cash, barFeed, commission=FuturesCommission(2.50))
         if symbols is None:
@@ -43,6 +44,8 @@ class ClenowBreakoutStrategy(Strategy):
             # directly in the onBars method below
             self._tradeStart = datetime.datetime(1900,1,1)
         self.__prep_bar_feed()
+        self._startingCash = cash
+        self._compounding = compounding
         
     def getPositions(self):
         return self._positions
@@ -65,7 +68,8 @@ class ClenowBreakoutStrategy(Strategy):
     def _calc_position_size(self, instrument, atr):
         #print 'atr = %f,equity = %0.2f,point_vaue = %0.2f,risk_factor = %f' % \
         #    (atr, self.getBroker().getCash(), self._db.get(instrument).point_value(), self._riskfactor )
-        target_quant = self.getBroker().getCash() * self._riskfactor / \
+        equity = self.getBroker().getCash() if self._compounding else self._startingCash
+        target_quant = equity * self._riskfactor / \
                         (self._db.get(instrument).point_value() * atr)
         if target_quant < 1:
             logger.warning('Insufficient equity to meet risk target for %s, risk multiple %0.3f' % (instrument,1.0/target_quant))
@@ -138,9 +142,11 @@ class ClenowBreakoutStrategy(Strategy):
         
 class ClenowBreakoutNoIntraDayStopStrategy(ClenowBreakoutStrategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, period=50, stop=3.0, tradeStart=None):
+                 riskFactor = 0.002, period=50, stop=3.0, tradeStart=None,
+                 compounding = True):
         ClenowBreakoutStrategy.__init__(self, barFeed, symbols, broker, cash,\
-                                        riskFactor, period, stop, tradeStart)
+                                        riskFactor, period, stop, tradeStart,
+                                        compounding)
 
     def onBars(self, bars):
         #print 'On date %s, cash = %f' % (bars[bars.keys()[0]]['Datetime'], self.getBroker().getCash())

@@ -17,6 +17,7 @@ from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
 import numpy
 from hedgeit.common.logger import getLogger
+import time
 
 logger = getLogger("broker.backtesting")
         
@@ -24,7 +25,7 @@ class ClenowController(object):
     def __init__(self, sectorMap, positionsFile, equityFile, returnsFile, \
                  cash = 1000000, riskFactor = 0.002, period=50, stop=3.0, \
                  tradeStart=None, intraDayStop = True, summaryFile=None,
-                 modelType=None):
+                 modelType=None, compounding = True):
 
         self._runGroups = {}
         self._startingCash = cash    
@@ -52,7 +53,8 @@ class ClenowController(object):
                                                       riskFactor=riskFactor, 
                                                       period=period, 
                                                       stop=stop, 
-                                                      tradeStart=tradeStart)
+                                                      tradeStart=tradeStart,
+                                                      compounding=compounding)
                 else:
                     strategy = ClenowBreakoutNoIntraDayStopStrategy(self._feed, 
                                                                     symbols=strategySymbols, 
@@ -61,7 +63,8 @@ class ClenowController(object):
                                                                     riskFactor=riskFactor, 
                                                                     period=period, 
                                                                     stop=stop, 
-                                                                    tradeStart=tradeStart)
+                                                                    tradeStart=tradeStart,
+                                                                    compounding=compounding)
             elif modelType == 'macross':
                 strategy = MACrossStrategy(self._feed, 
                                            symbols=strategySymbols, 
@@ -189,9 +192,42 @@ class ClenowController(object):
         logger.info('Total Net Profit: $%0.2f' % self._tradeProfit)   
         logger.info('Total Avg Profit: $%0.2f' % (self._tradeProfit / len(alltrades)))   
         logger.info('Winning Trades  : %d (%0.1f%%)' % (wins, wins * 100.0 / len(alltrades)))   
-        logger.info('Average Winner  : $%0.2f (%0.3f%%)' % (winamt/ wins, (winamt/wins) * 100.0/winmargin))   
+        logger.info('Average Winner  : $%0.2f (%0.1f%%)' % (winamt/ wins, (winamt * 100.0/winmargin)))   
         logger.info('Losing   Trades : %d (%0.1f%%)' % (len(alltrades) - wins,(len(alltrades) - wins) * 100.0/len(alltrades)))   
-        logger.info('Average Loser   : $%0.2f (%0.3f%%)' % ((self._tradeProfit - winamt) / (len(alltrades) - wins),(self._tradeProfit - winamt) / (len(alltrades) - wins)*100.0/losemargin))   
+        logger.info('Average Loser   : $%0.2f (%0.1f%%)' % ((self._tradeProfit - winamt) / (len(alltrades) - wins),(self._tradeProfit - winamt) *100.0/losemargin))   
+        
+    def writeTSSPTrades(self, filebase):
+        # get one list with all trades
+        alltrades = []
+        for sec in self._runGroups:
+            alltrades.extend(self._runGroups[sec].trades_analyzer().trade_records())
+        
+        # now we want to sort this by trade entry
+        alltrades = sorted(alltrades, key=lambda x: x.getEntryDate())
+        
+        # want to sum total trade profit for verification purposes        
+        sf = open('%s_short.csv' % filebase,'w')
+        lf = open('%s_long.csv' % filebase,'w')
+        
+        # write the header rows
+        # Note that TSSP is only supported on Windows so we go head
+        # and write these files with \r\n to avoid the step of running
+        # unix2dos or equivalent
+        sf.write('Date,Market,Contracts,Points,SCALEDPROFIT,REALPROFIT\r\n')
+        lf.write('Date,Market,Contracts,Points,SCALEDPROFIT,REALPROFIT\r\n')
+        
+        for t in alltrades:
+            fp = sf if t.getTradeSize() < 0 else lf
+
+            fp.write('%s,%s,%d,%0.3f,%0.5f,%0.5f\r\n' % 
+                        (t.getEntryDate().strftime("%Y%m%d"),
+                         t.getSymbol(),
+                         t.getTradeSize(),
+                         t.getExitPrice() - t.getEntryPrice(),
+                         t.getNetProfit(0) / t.getInitialMargin(),
+                         t.getNetProfit(0) / self._startingCash * 100.0))
+        sf.close()
+        lf.close()         
         
     def _handle_trade_start(self, datetime):
         self._broker.setCash(self._startingCash)
