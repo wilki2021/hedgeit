@@ -1,0 +1,2 @@
+description,symbol,pointValue,currency,exchange,initialMargin,maintMargin,sector,datafile,Interactive,TradeStation
+Rough rice,RR,20,USD,CBT,1350,1000,Agricultural,RR2a_CCB.csv,Y,Y

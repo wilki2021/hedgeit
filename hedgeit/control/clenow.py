@@ -15,6 +15,7 @@ from hedgeit.strategy.rsicounter import RSICounterStrategy
 from hedgeit.analyzer.drawdown import DrawDown
 from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
+from hedgeit.broker.orders import Order
 import numpy
 from hedgeit.common.logger import getLogger
 import time
@@ -228,6 +229,26 @@ class ClenowController(object):
                          t.getNetProfit(0) / self._startingCash * 100.0))
         sf.close()
         lf.close()         
+
+    def writeTradeAlerts(self, filename):
+        # get one list with all trade alerts
+        allalerts = []
+        for sec in self._runGroups:
+            allalerts.extend(self._runGroups[sec].strategy().tradeAlerts())
+
+        if len(allalerts):
+            logger.info('There are %d new trade alerts' % len(allalerts))
+            
+        wf = open(filename,"w")
+        wf.write('Symbol,Quantity,Action\r\n')
+
+        for alert in allalerts:
+            wf.write('%s,%d,%s\n' %
+                     (alert.getInstrument(),
+                     alert.getQuantity(),
+                     Order.Action.action_strs[alert.getAction()]))
+        wf.close()
+        
         
     def _handle_trade_start(self, datetime):
         self._broker.setCash(self._startingCash)

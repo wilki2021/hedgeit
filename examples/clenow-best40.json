@@ -1,5 +1,5 @@
 { "Ag" : ["CT2","LB","RR2","S2","SB2","W2"],
   "Non-Ag" : ["HG2","RB2","GO","CL2","HO2","NG2","GC2","PA2","SI2"],
   "Currencies" : ["AD","BP","EC","JY","SF","CD"],
-  "Equities" : ["FCE","DAX","ND","NK","SP"],
+  "Equities" : ["FCE","NQ","NK","ES"],
   "Rates" : ["GBS","LLG","BAX","TU2","TY2","ED","LES","LEU","LSS"]}

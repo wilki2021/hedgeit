@@ -287,6 +287,9 @@ class BacktestingBroker(broker.Broker):
         at the end of the data feed.  It assumes that the Strategy has entered
         market orders to close out any active positions and then sets the 
         FillOnClose flag for each and then re-evaluates against the last bar
+        
+        Note that it is the responsibility of the strategy to ensure that only
+        Market orders that should be executed are currently active/accepted
         '''
         for order in self.__activeOrders:
             if order.getType() == order.Type.MARKET:

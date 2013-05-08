@@ -34,6 +34,10 @@ usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
         -t          : model type ('breakout', 'macross', or 'rsicounter', default = 'breakout')
         -g          : no compounding of equity
         
+        -tssb <name>: write out two files for tssb consumption - <name>_long.csv
+                      and <name>_short.csv containing long and short trades
+                      respectively.   
+        
     manifest   : file containing information on tradable instruments.  The file
                  is CSV format - see hedgeit.feeds.db for information
     sector-map : file containing JSON specification for sectors.  Must be 
@@ -49,7 +53,7 @@ usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
     
 def main(argv=None):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hc:r:p:s:nt:g", [])
+        opts, args = getopt.getopt(sys.argv[1:], "hc:r:p:s:nt:g", ["tssb="])
     except getopt.GetoptError as err:
         # print help information and exit:
         print str(err) # will print something like "option -a not recognized"
@@ -63,6 +67,7 @@ def main(argv=None):
     intraDay = True
     type_ = 'breakout'
     compounding = True
+    tssb = None
     for o, a in opts:
         if o == "-c":
             cash = float(a)
@@ -85,6 +90,9 @@ def main(argv=None):
         elif o == "-g":
             compounding = False
             Log.info('Compounding disabled')
+        elif o == "--tssb":
+            tssb = a
+            Log.info('Writing tssb files with base %s' % tssb)
         else:
             usage()
             return
@@ -115,7 +123,11 @@ def main(argv=None):
 
     tlog = 'trades.csv'
     ctrl.writeAllTrades(tlog)
-    ctrl.writeTSSPTrades('tssp')
+    if tssb:
+        ctrl.writeTSSPTrades(tssb)
+    
+    alog = 'alerts.csv'
+    ctrl.writeTradeAlerts(alog)
     
     Log.info('Net return     :  %0.1f%%' % (ctrl.net_return() * 100.0))
     Log.info('Max drawdown   : -%0.1f%%' % (ctrl.drawdown().getMaxDrawDown() * 100.0))
