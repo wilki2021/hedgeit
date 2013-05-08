@@ -5,7 +5,6 @@ Contains:
     class PriceVelocity
 '''
 from hedgeit.feeds.indicator import Indicator
-from scipy import stats
 import numpy
 
 class PriceVelocity(Indicator):
