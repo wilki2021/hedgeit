@@ -221,24 +221,24 @@ class AuditParser(object):
             line = self._get_line()
         
     def parse_wfstats(self):
-        modelstart = re.compile('^Model (\w+).*')
+        modelstart = re.compile('^(Model|Committee) (\w+).*')
         line = self._get_line()
         while line != None and not self._termpatt.match(line):
             res1 = modelstart.match(line)
             if res1:
-                wfmstats = self.parse_wfmodel(res1)
-                self.wfstats.add_model(res1.group(1), wfmstats)
+                wfmstats = self.parse_wfmodel(res1.group(2))
+                self.wfstats.add_model(res1.group(2), wfmstats)
                 
             line = self._get_line()
     
-    def parse_wfmodel(self, mat):        
-        # print 'parsing walk-forward statistics for model %s' % mat.group(1)
+    def parse_wfmodel(self, model):        
+        # print 'parsing walk-forward statistics for model %s' % model
         
         wfmstats = ModelStats()
         patt1 = re.compile('^Pooled out-of-sample.*')
         patt2 = re.compile('^Target grand mean = ([-\.\d]+)')
-        patt3 = re.compile('^(\d+) of (\d+) cases.*above outer high.*Mean = ([-\.\d]+)')
-        patt4 = re.compile('^(\d+) of (\d+) cases.*below outer low.*Mean = ([-\.\d]+)')
+        patt3 = re.compile('^(\d+) of (\d+) cases.*at or (.*) threshold(.*)')
+        patt4 = re.compile('.*Mean = ([-\.\d]+)')
         patt5 = re.compile('.*ROC area = ([-\.\d]+)')
         patt6 = re.compile('^Outer (\w+).*Improvement Ratio = ([-\.\d]+)')
         patt7 = re.compile('^.* (\w+) trades; total return = ([-\.\d]+)')
@@ -254,28 +254,38 @@ class AuditParser(object):
                 pstate = 2
             elif pstate == 2:
                 mat1 = patt3.match(line)
+                assert( mat1.group(3) == 'above outer high')
                 wfmstats.num_above_high = int(mat1.group(1))
                 wfmstats.total_cases = int(mat1.group(2))
-                wfmstats.mean_above_high = float(mat1.group(3))
+                if wfmstats.num_above_high > 0:
+                    mat2 = patt4.match(mat1.group(4)) 
+                    wfmstats.mean_above_high = float(mat2.group(1))
                 
-                mat2 = patt4.match(self._get_line())
-                wfmstats.num_below_low = int(mat2.group(1))
-                wfmstats.mean_below_low = float(mat2.group(3))
+                mat1 = patt3.match(self._get_line())
+                assert( mat1.group(3) == 'below outer low')
+                wfmstats.num_below_low = int(mat1.group(1))
+                if wfmstats.num_below_low > 0:
+                    mat2 = patt4.match(mat1.group(4)) 
+                    wfmstats.mean_below_low = float(mat2.group(1))
+
                 pstate = 3
             elif pstate == 3:
                 mat = patt5.match(line)
                 wfmstats.roc_area = float(mat.group(1))
                 pstate = 4
             elif pstate == 4 and patt6.match(line):
-                mat1 = patt6.match(line) 
-                assert(mat1.group(1) == 'long')
-                wfmstats.long_only_imp = float(mat1.group(2))
+                if wfmstats.num_above_high:
+                    mat1 = patt6.match(line) 
+                    assert(mat1.group(1) == 'long')
+                    wfmstats.long_only_imp = float(mat1.group(2))
 
-                mat2 = patt6.match(self._get_line()) 
-                assert(mat2.group(1) == 'short')
-                wfmstats.short_only_imp = float(mat2.group(2))
+                if wfmstats.num_below_low:
+                    mat2 = patt6.match(self._get_line()) 
+                    assert(mat2.group(1) == 'short')
+                    wfmstats.short_only_imp = float(mat2.group(2))
+                    
                 pstate = 5
-            elif pstate == 5 and patt7.match(line):
+            elif (pstate == 4 or pstate == 5) and patt7.match(line):
                 mat1 = patt7.match(line)
                 assert(mat1.group(1) == 'long')
                 wfmstats.long_total_ret = float(mat1.group(2))

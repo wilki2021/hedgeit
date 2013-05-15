@@ -8,7 +8,18 @@ import pywinauto
 import time
 import traceback
 import sys
+import os
 
+def get_process_list():
+    ret = set()
+    hand = os.popen("wmic process get description")
+    for line in hand.readlines():
+        line = line.strip()
+        if len(line):
+            ret.add(line)
+    hand.close()
+    return ret
+     
 def run_tssb(script, tssb_path='tssb64.exe'):
     '''
     run_tssb performs a run of TSSB for the specified script file.  If the
@@ -29,59 +40,102 @@ def run_tssb(script, tssb_path='tssb64.exe'):
                 - TSSB could not locate the script file
     '''
     app = application.Application.start(tssb_path)
-    time.sleep(0.5)
 
-    # deal with the liability disclaimer first
-    app.window_(title="Disclaimer of Liability").Wait('ready')
-    app.window_(title="Disclaimer of Liability").IAgree.Click()
-    time.sleep(0.5)
-    
-    # now interact with the main window
-    main = app.window_(title_re="TSSB.*")
-    main.Wait('ready')
-    main.MenuSelect('File->Read Script')
-    
-    read_dlg = app.window_(title="Script file to read")
-    read_dlg.Wait('ready')
-    time.sleep(0.5)
-    read_dlg.Edit.SetEditText(script)
-    time.sleep(0.5)
-    app.window_(title="Script file to read").Open.Click()
-    time.sleep(0.2)
-    # pywinauto is finicky here for some reason.  We need to check
-    # if the window actually went away
-    num = len(findwindows.find_windows(title=u'Script file to read', class_name='#32770'))
-    if num == 1:
-        # there is one window open which means the button press didn't 
-        # take for some reason.  Let's try one more time 
-        app.window_(title="Script file to read").Open.Click()
-        
-    # the re needs to match the script we are opening
-    run_win = app.window_(title=script)
-    try:
-        # we have to make sure that this windows opens or else it means that
-        # the script file could not be located.
-        run_win.Wait('exists',timeout=2)
-    except:
-        # this means that the script file could not be found.  We need to
-        #  1) close the error dialog
-        w_handle = findwindows.find_windows(title=u'Script file to read', class_name='#32770')[0]
-        window = app.window_(handle=w_handle)
-        window.Close()
-        time.sleep(0.5)
-        #  2) close the Read Script dialog
-        read_dlg.Close()
-        time.sleep(0.5)
-        #  3) close the main window
-        app.window_(title_re="TSSB.*").MenuSelect('File->Exit')
-        #  4) throw an exception so the user knows what happened 
-        raise Exception('TSSB could not find script file: %s' % script)        
-
-    # another attempt...Once the script starts it disables the menu
+    # step 1 - we know that there will always be a Liability Disclaimer window
     while True:
         try:
-            run_win.MenuSelect('File->Exit')
+            app.window_(title="Disclaimer of Liability").Wait('ready')
             break
+        except:
+            # we don't really care what the exception is - we just know
+            # that it has to show up at some point
+            time.sleep(0.5)
+
+    # step 2 - now make it go away
+    while True:
+        try:
+            app.window_(title="Disclaimer of Liability").IAgree.Click()
+            break
+        except:
+            # we don't really care what the exception is - we just know
+            # that it has to show up at some point
+            time.sleep(0.5)
+
+    # step 2.5 - now we need to get the Read Script dialog open
+    while len(app.windows_(title=u'Script file to read')) == 0:
+        try:
+            app.window_(title_re="TSSB.*").MenuSelect('File->Read Script')
+        except:
+            time.sleep(0.5)
+            
+    # step 3 - make sure we get the script into the file open box
+    text = ''
+    while text != script:
+        try:
+            read_dlg = app.window_(title="Script file to read")
+            read_dlg.Wait('ready')
+            read_dlg.Edit.SetEditText(script)
+            text = read_dlg.Edit.TextBlock()
+        except:
+            tb = traceback.format_exc()
+            print tb
+            time.sleep(0.5)
+
+    # step 4 - get past the file open box.  There are two possibilities-
+    # either TSSB starts processing or it couldn't open the script in 
+    # which case we need to detect that and bail out
+    while len(app.windows_(title=u'Script file to read')) > 0:
+        if len(app.windows_(title=u'Script file to read')) == 2:
+            # this is what happens when tssb cannot find the specified script file
+            # first close both dialogs
+            while len(app.windows_(title=u'Script file to read')) > 0:
+                app.windows_(title=u'Script file to read')[0].Close()
+            #  now close the main window
+            app.window_(title_re="TSSB.*").MenuSelect('File->Exit')
+            #  finally, throw an exception so the user knows what happened 
+            raise Exception('TSSB could not find script file: %s' % script)                        
+        try:
+            app.window_(title="Script file to read").Open.Click()
+        except:
+            time.sleep(0.5)
+    
+    # arbitrary sleep to make sure the script starts        
+    time.sleep(0.5)
+    
+    # step 5 - monitor for completion.  If the script runs to completion
+    # we'll eventually get a successful MenuSelect call for File->Exit.
+    # the other possibility, however is that the script had errors.  We
+    # need to detect that and bail out if it occurs
+    while True:
+        # this checks for the syntax error case
+        if len(app.windows_(title_re='Syntax.*')):
+            # oops - this means the script had some type of error.  We want
+            # to close the dialog exit and throw an exception
+            app.window_(title_re='Syntax.*').Close()
+            #  now close the main window
+            app.window_(title=script).MenuSelect('File->Exit')
+            #  finally, throw an exception so the user knows what happened 
+            raise Exception('TSSB found a syntax error in: %s' % script)                        
+        # this checks for another error case
+        if len(app.windows_(title_re='Error.*')):
+            # oops - this means the script had some type of error.  We want
+            # to close the dialog exit and throw an exception
+            app.window_(title_re='Error.*').Close()
+            #  now close the main window
+            app.window_(title=script).MenuSelect('File->Exit')
+            #  finally, throw an exception so the user knows what happened 
+            raise Exception('TSSB found errors in: %s' % script)                        
+        
+        # this is the normal busy-loop check
+        try:
+            app.window_(title=script).MenuSelect('File->Exit')
+            time.sleep(0.5)
+            if 'tssb64.exe' in get_process_list():
+                # this should not happen - it means the MenuSelect call went 
+                # through without exception but the process is still running
+                pass
+            else:
+                break
         except pywinauto.controls.menuwrapper.MenuItemNotEnabled:
             time.sleep(1.0)
         except pywinauto.findwindows.WindowNotFoundError:
@@ -94,66 +148,10 @@ def run_tssb(script, tssb_path='tssb64.exe'):
             # but sleep and try again 
             tb = traceback.format_exc()
             print tb
-            time.sleep(1.0)
-    '''
-    # this took much trial and error to figure out what works.  It turns out
-    # that pywinauto has very little that works reliably when the application 
-    # is under load and TSSB tends to do that quite often.  The one thing that
-    # seems to be ok is to watch the number of child windows of our main 
-    # window.  This must be > 1 at some point (there may be small risk that
-    # we miss it if the script executes near instantaneously but this risk
-    # seems manageable
-    w_handle = findwindows.find_windows(title=script)[0]
-    child_wins = len(findwindows.enum_child_windows(w_handle))
-    assert( child_wins > 1)
-    while child_wins > 1:
-        time.sleep(1.0)
-        child_wins = len(findwindows.enum_child_windows(w_handle))
-    run_win.MenuSelect('File->Exit')
-    ''' 
-    '''
-    try:
-        while True:
-            # use this loop to determine when TSSB is really done we know that
-            # as long as TSSB is running there is an "Internal actions" window
-            # although it may open/close several during a run depending on the
-            # commands in the script.  We wait for one to exist and then to
-            # disappear.  Note the arbitrarily long timeout on the 
-            # WaitNot('exists') command - it must be long enough for the longest
-            # TSSB run that we want to accommodate.  We use a short timeout on
-            # the initial Wait('exists') because this is what trips us out of
-            # the loop - Essentially if there is ever a 2 second period where
-            # no new "Internal actions" window opens then we consider it done.
-            print 'TSSB still working...',time.time()
-            w_handle = findwindows.find_windows(title=script)[0]
-            window = app.window_(handle=w_handle)
-            window.Internalactions.Wait('exists',timeout=2)
-            # window.Internalactions.WaitNot('exists',timeout=3600)
-            done = False
-            while not done:
-                if len(findwindows.find_windows(title_re=u'Internal.*')) == 0:
-                    wins = findwindows.enum_child_windows(w_handle)
-                    for w in wins:
-                        window = app.window_(handle=w)
-                        print window
-                        print window.WrapperObject().Texts()
-                    print 'Internal actions not there!'
-                    done = True
-                else:
-                    print 'Internal actions there!'
-                    time.sleep(0.5)                
-    except:
-        print 'TSSB done...',time.time()
-        # Generally speaking this is a normal condition for how we exit, thus
-        # do nothing.  Some debugs in case there is a need to see which exception
-        # triggered exit from our wait loop above. 
-        tb = traceback.format_exc()
-        print tb
-        pass
-    run_win.MenuSelect('File->Exit')
-    ''' 
+            time.sleep(1.0) 
     
 if __name__ == '__main__':
-    run_tssb('foobar')
+    # print get_process_list()
+    # run_tssb('foobar')
     scrfile = sys.argv[1]
     run_tssb(scrfile,tssb_path="C:\\Users\\bwilkinson.Calpont\\TSSB\\tssb64.exe")
