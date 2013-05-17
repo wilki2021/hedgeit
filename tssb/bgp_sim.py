@@ -3,18 +3,32 @@ Created on May 13, 2013
 
 @author: rtw
 '''
-from paudit import *
-from pvars import *
-from runtssb import run_tssb
+from tssbutil.paudit import *
+from tssbutil.pvars import *
+from tssbutil.runtssb import run_tssb
+from tssbutil.sedlite import sed_lite
 import getopt
 import os
 import shutil
-import glob
+import sys
 
 def usage():
     print '''
-usage: subgroup_stability <year-start> <year-end>
+usage: outer_wf.py <year-start> <year-end>
+
+    Performs an "outer" walk-forward analysis loop across a series of
+    years per the command-line arguments.  Each "inner" walk-forward 
+    is a discrete (and currently hard-coded) series of steps to select
+    a smaller indicator set from a larger one and then select and train
+    a series of models from them.
     
+    Parameters:
+        <year-start>  - integer, year to start the outer walk forward.
+                        NOTE - for any given walk-forward year, that
+                        year is included in the training set and the 
+                        subsequent year is treated as the test/validation
+                        period.
+        <year-end>    - integer, year to end the outer walk forward.
     Options:  None
 '''
     
@@ -22,14 +36,7 @@ def apply_script_template(template, output, varmap):
     assert(os.path.exists(template))
     if os.path.exists(output):
         os.remove(output)
-    shutil.copyfile(template, output)
-    for (var,value) in varmap.iteritems():
-        cmd = 'sed -i "s/<%s>/%s/g" %s' % (var,value,output)
-        os.system(cmd)
-    # for some reason sed from GnuWin32 leaves temp files around when
-    # the -i option is used
-    for f in glob.glob('sed*'):
-        os.remove(f)
+    sed_lite(template, output, varmap)
         
 def run_tssb_wrapper(script, log):
     tssb = 'C:\\Users\\bwilkinson.Calpont\\TSSB\\tssb64.exe'
@@ -58,13 +65,13 @@ def run_iteration(year, vars_, lag):
     
     # first instantiate our each script files
     varmap = {
-        'YEAR_START' : '%s' % (year - lag),
-        'YEAR_END' : '%s' % year,
-        'YEAR_MAX' : '2013',
-        'TEST_START' : '%s' % (year + 1),
-        'TEST_END' : '%s' % (year + 1),
-        'VAR_LIST' : 'varlist.txt',
-        'DB_NAME'  : 'vardb'}
+        '<YEAR_START>' : '%s' % (year - lag),
+        '<YEAR_END>' : '%s' % year,
+        '<YEAR_MAX>' : '2013',
+        '<TEST_START>' : '%s' % (year + 1),
+        '<TEST_END>' : '%s' % (year + 1),
+        '<VAR_LIST>' : 'varlist.txt',
+        '<DB_NAME>'  : 'vardb'}
     for s in stage1_scripts:
         apply_script_template(os.path.join("..",s), s, varmap)
 
@@ -73,7 +80,7 @@ def run_iteration(year, vars_, lag):
     run_tssb_wrapper(stage1_scripts[0],log)
     sub = AuditParser(log)
     varfile = open('varlist.txt','w') # must match VAR_LIST entry above
-    varlist = sub.selstats.list_all_gt(3.0)   
+    varlist = sub.tssbrun().selection_stats().list_all_gt(3.0)   
     for var in varlist:
         varfile.write('%s: %s\r\n' % (var[0],vars_.vars()[var[0]]))
     varfile.close()    
@@ -82,18 +89,19 @@ def run_iteration(year, vars_, lag):
     log = 'create_audit.log'
     run_tssb_wrapper(stage1_scripts[1],log)
     
-    varmap['VAR_1'] = varlist[0][0]
-    varmap['VAR_N'] = varlist[-1][0]
+    varmap['<VAR_1>'] = varlist[0][0]
+    varmap['<VAR_N>'] = varlist[-1][0]
     apply_script_template(os.path.join("..",'findgroups.txt'), 'findgroups.txt', varmap)
 
     # now get our groups
     log = 'fgroup_audit.log'
     run_tssb_wrapper(stage2_scripts[0],log)
     groups = AuditParser(log)
-    for (group,stats) in groups.fgstats.groups().iteritems():
-        groupname = 'GROUP%s' % group
+    fold = groups.tssbrun().folds()[0]
+    for (name,modeliter) in fold.models().iteritems():
+        groupname = '<GROUP%s>' % name
         varspec = ''
-        for var in stats.get_vars():
+        for var in modeliter.defn().get_factors():
             if var[0] != 'CONSTANT':
                 varspec = varspec + ' ' + var[0]
         varmap[groupname] = varspec
@@ -148,12 +156,12 @@ if __name__ == '__main__':
         if not headers:
             headers = True
             line = 'year'
-            for (model,wfmstats) in sorted(res.wfstats.models().iteritems()):
+            for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
                 line = line + ",%s" % model
             wf.write('%s\n' % line)
 
         line = '%s' % y 
-        for (model,wfmstats) in sorted(res.wfstats.models().iteritems()):
+        for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
             line = line + ",%0.4f" % wfmstats.long_only_imp
         wf.write('%s\n' % line)
     wf.close()            
