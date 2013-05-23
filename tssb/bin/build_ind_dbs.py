@@ -3,12 +3,6 @@ Created on May 21, 2013
 
 @author: bwilkinson
 '''
-'''
-Created on May 13, 2013
-
-@author: rtw
-'''
-from tssbutil.paudit import AuditParser
 from tssbutil.pvars import VarParser
 from tssbutil.runtssb import run_tssb
 from tssbutil.sedlite import sed_lite
@@ -16,6 +10,7 @@ import getopt
 import os
 import shutil
 import sys
+import random
 
 class SimMain(object):
     
@@ -28,7 +23,7 @@ class SimMain(object):
 
     def main(self,argv=None):
         try:
-            opts, args = getopt.getopt(sys.argv[1:], "", ['rescan'])
+            opts, args = getopt.getopt(sys.argv[1:], "", ['rescan','rand','all='])
         except getopt.GetoptError as err:
             # print help information and exit:
             print str(err) # will print something like "option -a not recognized"
@@ -36,9 +31,15 @@ class SimMain(object):
             sys.exit(2)
     
         rescan = False
+        userand = False
+        allname = 'ALL'
         for o, a in opts:
             if o == '--rescan':
                 rescan = True
+            elif o == '--rand':
+                userand = True
+            elif o == '--all':
+                allname = a
             else:
                 # we don't support any options so anything here is a problem.
                 self.usage()
@@ -66,7 +67,13 @@ class SimMain(object):
             
         # write all the individual indicator databases
         read_databases = ''
-        for v in vars_.varlist():
+
+        varlist = vars_.varlist()
+        if userand:
+            random.shuffle(varlist)
+            
+        l = open('%s.txt' % allname,'w')
+        for v in varlist:
             if not rescan:
                 # write a file with this one indicator
                 tmp = open("tmp.txt","w")
@@ -77,10 +84,12 @@ class SimMain(object):
                 self.apply_script_template('..\create1.txt', 'create1.txt', self._varmap)
                 self.run_tssb_wrapper('create1.txt', 'create1.log')
                 
+            l.write('%s: %s\r\n' % (v,vars_.vars()[v]))
             read_databases = read_databases + 'APPEND DATABASE "%s.DAT" ;\r\n' % v
 
+        l.close()
         self._varmap['<APPEND_DATABASES>'] = read_databases
-        self._varmap['<DB_NAME>'] = 'all'
+        self._varmap['<DB_NAME>'] = allname
         self.apply_script_template('..\createall.txt', 'createall.txt', self._varmap)
         self.run_tssb_wrapper('createall.txt', 'createall.log')
         
@@ -102,6 +111,10 @@ usage: build_ind_dbs.py <indicator-defns> <db-location>
     Options:
         --rescan          - reuse individual indicator databases to create
                             the aggregate database
+        --rand            - randomize the order of indicators in the 
+                            aggregate DB
+        --all <name>      - specify the name of the aggregate database
+                            to be created
 '''
     
     def apply_script_template(self, template, output, varmap):
