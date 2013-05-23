@@ -15,20 +15,25 @@ import sys
 class SimMain(object):
     
     def __init__(self):
-        self._stage1_scripts = ['subsample.txt','createdb.txt']
-        self._stage2_scripts = ['findgroups.txt','preselect.txt']
+        self._stage1_scripts = ['subsample.txt']
+        self._stage2_scripts = ['createdb.txt','findgroups.txt','preselect.txt']
         self._varmap = {
             '<YEAR_MAX>' : '2013',
             '<VAR_LIST>' : 'varlist.txt',
             '<DB_NAME>'  : 'vardb',
             '<TRADE_DB>' : '..\\\\..\\\\tssb_long.csv',
             '<NUM_VARS>' : '1',
-            '<MODEL>'    : 'QUADRATIC' }
+            '<MODEL>'    : 'QUADRATIC',
+            '<RETENTION>': '10',
+            '<MIN_CRIT>' : '0.3' }
         self._with_val = False
+        self._var_thresh = 3.0
 
     def main(self,argv=None):
         try:
-            opts, args = getopt.getopt(sys.argv[1:], "", ['rescan','trades=','num_vars=','model=','with_val'])
+            opts, args = getopt.getopt(sys.argv[1:], "", 
+                                       ['rescan','trades=','num_vars=','model=',
+                                        'with_val','retention=','min_crit=','var_thresh='])
         except getopt.GetoptError as err:
             # print help information and exit:
             print str(err) # will print something like "option -a not recognized"
@@ -52,6 +57,17 @@ class SimMain(object):
             elif o == '--with_val':
                 print 'Using a validation year'
                 self._with_val = True
+            elif o == '--retention':
+                int(a)
+                print 'Setting STEPWISE RETENTION to %s' % a
+                self._varmap['<RETENTION>'] = a
+            elif o == '--min_crit':
+                float(a)
+                print 'Setting MIN CRITERION FRACTION to %s' % a
+                self._varmap['<MIN_CRIT>'] = a
+            elif o == '--var_thresh':
+                self._var_thresh = float(a)
+                print 'Setting variable selection threshold to %s' % a
             else:
                 # we don't support any options so anything here is a problem.
                 self.usage()
@@ -140,6 +156,12 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
                         shifts the true walk-forward year ahead by 1 so
                         performance for 2002 is actually out-of-sample
                         performance for 2004 
+        --retention <num> value to use for the STEPWISE RETENTION 
+                        setting in all relevant stages
+        --min_crit <float> value to use for the MIN CRITERION FRACTION
+                        setting in all relevant stages
+        --var_thresh <float> threshold to use for variable selection after
+                        the subsampling stage
 '''
     
     def apply_script_template(self, template, output, varmap):
@@ -177,7 +199,10 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
             self._varmap['<VAL_YEAR>'] = '%s' % (year + 1)
             self._varmap['<TEST_YEAR>'] = '%s' % (year + 2)
         else:
+            self._varmap['<VAL_YEAR>'] = '%s' % (year + 1)
             self._varmap['<TEST_YEAR>'] = '%s' % (year + 1)
+        self._varmap['<VAR_1>'] = vars_.varlist()[0]
+        self._varmap['<VAR_N>'] = vars_.varlist()[-1]
         
         for s in self._stage1_scripts:
             self.apply_script_template(os.path.join("..","..",s), s, self._varmap)
@@ -186,62 +211,65 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
         log = 'sub_audit.log'
         self.run_tssb_wrapper(self._stage1_scripts[0],log)
         sub = AuditParser(log)
-        varfile = open('varlist.txt','w') # must match VAR_LIST entry above
-        varlist = sub.tssbrun().selection_stats().list_all_gt(3.0)   
-        for var in varlist:
-            varfile.write('%s: %s\r\n' % (var[0],vars_.vars()[var[0]]))
-        varfile.close()    
-    
-        # now create our database
-        log = 'create_audit.log'
-        self.run_tssb_wrapper(self._stage1_scripts[1],log)
         
+        varlist = sub.tssbrun().selection_stats().list_all_gt(self._var_thresh)
+        app_dbs = ''   
+        for var in varlist:
+            app_dbs = app_dbs + ('APPEND DATABASE "..\\\\..\\\\db\\\\%s.DAT" ;\r\n' % var[0])
+        self._varmap['<APPEND_DATABASES>'] = app_dbs
+        self.apply_script_template(os.path.join("..","..",'createdb.txt'), 'createdb.txt', self._varmap)
+        log = 'create_audit.log'
+        self.run_tssb_wrapper('createdb.txt',log)            
+            
         self._varmap['<VAR_1>'] = varlist[0][0]
         self._varmap['<VAR_N>'] = varlist[-1][0]
         self.apply_script_template(os.path.join("..","..",'findgroups.txt'), 'findgroups.txt', self._varmap)
     
         # now get our groups
         log = 'fgroup_audit.log'
-        self.run_tssb_wrapper(self._stage2_scripts[0],log)
+        self.run_tssb_wrapper('findgroups.txt',log)
         groups = AuditParser(log)
         fold = groups.tssbrun().folds()[0]
-        if not self._with_val:
-            for (name,modeliter) in fold.models().iteritems():
-                groupname = '<GROUP%s>' % name
-                varspec = ''
-                for var in modeliter.defn().get_factors():
-                    if var[0] != 'CONSTANT':
-                        varspec = varspec + ' ' + var[0]
-                self._varmap[groupname] = varspec
-                
-            # there is a potential that we didn't supply enough 
-            # variables to find the target number of groups (currently 5)
-            # need to make sure we don't use stale <GROUP> values from
-            # an earlier iteration.  We reuse models starting from the
-            # top of the list to fill in up to 5
-            if len(fold.models()) < 5:
-                count = len(fold.models())
-                for i in range(count+1,6):
-                    fromkey = '<GROUP%d>' % i
-                    tokey = '<GROUP%d>' % (i-count)
-                    self._varmap[fromkey] = self._varmap[tokey]
-        else:
+        for (name,modeliter) in fold.models().iteritems():
+            groupname = '<GROUP%s>' % name
+            varspec = ''
+            for var in modeliter.defn().get_factors():
+                if var[0] != 'CONSTANT':
+                    varspec = varspec + ' ' + var[0]
+            self._varmap[groupname] = varspec
+            
+        # there is a potential that we didn't supply enough 
+        # variables to find the target number of groups (currently 5)
+        # need to make sure we don't use stale <GROUP> values from
+        # an earlier iteration.  We reuse models starting from the
+        # top of the list to fill in up to 5
+        if len(fold.models()) < 5:
+            count = len(fold.models())
+            for i in range(count+1,6):
+                fromkey = '<GROUP%d>' % i
+                tokey = '<GROUP%d>' % (i-count)
+                self._varmap[fromkey] = self._varmap[tokey]
+
+        self.apply_script_template(os.path.join("..","..",'preselect.txt'), 'preselect.txt', self._varmap)
+        log = 'pselect_audit.log'
+        self.run_tssb_wrapper("preselect.txt",log)
+        ret = AuditParser(log)
+
+        if self._with_val:
+            fold = ret.tssbrun().folds()[0]
             ranked = sorted(fold.models().itervalues(), key=lambda x: x.oosample_stats().long_only_imp, reverse=True)
             for i in range(1,4):
                 groupname = '<GROUP%d>' % i
                 modeliter = ranked[i-1]
-                varspec = ''
-                for var in modeliter.defn().get_factors():
-                    if var[0] != 'CONSTANT':
-                        varspec = varspec + ' ' + var[0]
-                self._varmap[groupname] = varspec
+                # we know that the model name is FILTLONGN where N=[1..5] and further
+                # that <GROUPN> corresponds to FILTLONGN from the previous step
+                fromkey = '<GROUP%s>' % modeliter.name()[-1]
+                self._varmap[groupname] = self._varmap[fromkey]
                     
-        self.apply_script_template(os.path.join("..","..",'preselect.txt'), 'preselect.txt', self._varmap)
-    
-        # finally execute against our test year
-        log = 'pselect_audit.log'
-        self.run_tssb_wrapper("preselect.txt",log)
-        ret = AuditParser(log)
+            self.apply_script_template(os.path.join("..","..",'preselect_test.txt'), 'preselect_test.txt', self._varmap)
+            log = 'pselect_test_audit.log'
+            self.run_tssb_wrapper("preselect_test.txt",log)
+            ret = AuditParser(log)    
         
         os.chdir("..")
         return ret
