@@ -124,9 +124,8 @@ usage: build_ind_dbs.py <indicator-defns> <db-location>
         sed_lite(template, output, varmap)
             
     def run_tssb_wrapper(self, script, log):
-        tssb = 'C:\\Users\\bwilkinson.Calpont\\TSSB\\tssb64.exe'
         filepath = os.path.join(os.getcwd(), script)
-        run_tssb(filepath,tssb_path=tssb)
+        run_tssb(filepath)
     
         if not os.path.exists('AUDIT.LOG'):
             raise Exception("TSSB did not appear to write an AUDIT.log file!!")

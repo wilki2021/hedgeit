@@ -23,7 +23,7 @@ class Main(object):
             self.usage()
             sys.exit(2)
     
-        installdir = 'c:\\tssb-test'
+        installdir = 'c:\\tssb'
         for o, a in opts:
             if o == '-d':
                 installdir = a
