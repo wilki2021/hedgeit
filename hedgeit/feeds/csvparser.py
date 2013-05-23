@@ -32,7 +32,12 @@ class PremiumDataParser(RowParser):
         pass
 
     def __parseDateTime(self, dateTime):
-        ret = datetime.datetime.strptime(dateTime, "%Y-%m-%d")
+        # try a few different formats to allow for flexibility
+        try:
+            ret = datetime.datetime.strptime(dateTime, "%Y-%m-%d")
+        except ValueError:
+            ret = datetime.datetime.strptime(dateTime, "%Y%m%d")
+            
         return ret
 
     def getFieldNames(self):
