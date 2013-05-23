@@ -23,20 +23,17 @@ class SimMain(object):
 
     def main(self,argv=None):
         try:
-            opts, args = getopt.getopt(sys.argv[1:], "", ['rescan','rand','all='])
+            opts, args = getopt.getopt(sys.argv[1:], "", ['rand','all='])
         except getopt.GetoptError as err:
             # print help information and exit:
             print str(err) # will print something like "option -a not recognized"
             self.usage()
             sys.exit(2)
     
-        rescan = False
         userand = False
         allname = 'ALL'
         for o, a in opts:
-            if o == '--rescan':
-                rescan = True
-            elif o == '--rand':
+            if o == '--rand':
                 userand = True
             elif o == '--all':
                 allname = a
@@ -59,9 +56,7 @@ class SimMain(object):
     
         vars_ = VarParser(varinput)        
 
-        if not rescan:
-            if os.path.exists(dbloc):
-                shutil.rmtree(dbloc)
+        if not os.path.exists(dbloc):
             os.mkdir(dbloc)
         os.chdir(dbloc)
             
@@ -74,7 +69,7 @@ class SimMain(object):
             
         l = open('%s.txt' % allname,'w')
         for v in varlist:
-            if not rescan:
+            if not os.path.exists('%s.DAT' % v):
                 # write a file with this one indicator
                 tmp = open("tmp.txt","w")
                 tmp.write('%s: %s\r\n' % (v,vars_.vars()[v]))
@@ -109,10 +104,11 @@ usage: build_ind_dbs.py <indicator-defns> <db-location>
                             (treated as relative to current)
 
     Options:
-        --rescan          - reuse individual indicator databases to create
-                            the aggregate database
         --rand            - randomize the order of indicators in the 
-                            aggregate DB
+                            aggregate DB.  (to be DEPRECATED - was put in
+                            to test a theory on whether or not random variable
+                            order could affect TSSB output but proved to
+                            be false).
         --all <name>      - specify the name of the aggregate database
                             to be created
 '''

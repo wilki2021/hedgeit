@@ -11,6 +11,8 @@ import getopt
 import os
 import shutil
 import sys
+import json
+import numpy
 
 class SimMain(object):
     
@@ -25,15 +27,22 @@ class SimMain(object):
             '<NUM_VARS>' : '1',
             '<MODEL>'    : 'QUADRATIC',
             '<RETENTION>': '10',
-            '<MIN_CRIT>' : '0.3' }
+            '<MIN_CRIT>' : '0.3',
+            '<AGG_DB>'   : 'ALL',
+            '<STAGE1_CRIT>' : 'SHORT PROFIT FACTOR',
+            '<STAGE2_CRIT>' : 'LONG PROFIT FACTOR',
+            '<STAGE3_CRIT>' : 'LONG PROFIT FACTOR' }
         self._with_val = False
         self._var_thresh = 3.0
+        self._varbase = 'ALL'
 
     def main(self,argv=None):
         try:
             opts, args = getopt.getopt(sys.argv[1:], "", 
                                        ['rescan','trades=','num_vars=','model=',
-                                        'with_val','retention=','min_crit=','var_thresh='])
+                                        'with_val','retention=','min_crit=',
+                                        'var_thresh=','vars=','stage1_crit=',
+                                        'stage2_crit=','stage3_crit='])
         except getopt.GetoptError as err:
             # print help information and exit:
             print str(err) # will print something like "option -a not recognized"
@@ -68,6 +77,19 @@ class SimMain(object):
             elif o == '--var_thresh':
                 self._var_thresh = float(a)
                 print 'Setting variable selection threshold to %s' % a
+            elif o == '--vars':
+                self._varbase = a
+                self._varmap['<AGG_DB>'] = a
+                print 'Using aggregate variable database %s' % a
+            elif o == '--stage1_crit':
+                self._varmap['<STAGE1_CRIT>'] = a
+                print 'Using stage 1 criterion %s' % a                                
+            elif o == '--stage2_crit':
+                self._varmap['<STAGE2_CRIT>'] = a
+                print 'Using stage 2 criterion %s' % a                                
+            elif o == '--stage3_crit':
+                self._varmap['<STAGE3_CRIT>'] = a
+                print 'Using stage 3 criterion %s' % a                                
             else:
                 # we don't support any options so anything here is a problem.
                 self.usage()
@@ -89,7 +111,7 @@ class SimMain(object):
             if not os.path.exists(s):
                 print 'Error: must have the script template %s in current directory' % s
     
-        vars_ = VarParser('TREND_VOLATILITY3.TXT')
+        vars_ = VarParser('%s.TXT' % self._varbase)
     
         if not rescan:
             if os.path.exists(runname):
@@ -97,8 +119,14 @@ class SimMain(object):
             os.mkdir(runname)
         os.chdir(runname)
     
+        wf = open("runvars.json",'w')
+        vardump = json.dumps(self._varmap,indent=4,sort_keys=True)
+        wf.write(vardump)
+        wf.close()
+        
         wf = open("perf.csv","w")
         headers = False
+        resultsumm = {}
         for y in range(yearstart, yearend+1):
             # we get back the results from 1 walk-forward year
             if rescan:
@@ -108,14 +136,60 @@ class SimMain(object):
     
             if not headers:
                 headers = True
-                line = 'year,model,long_profit,long_imp,total_ret,max_dd'
+                line = 'year'
+                for model in sorted(res.tssbrun().walkforward_summ().iterkeys()):
+                    line = line + ",%s" % model
                 wf.write('%s\n' % line)
     
+            line = '%s' % y
             for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
-                line = '%s,%s,%0.4f,%0.4f,%0.2f,%0.2f' % \
-                        (y,model, wfmstats.long_profit_fac, wfmstats.long_only_imp, wfmstats.long_total_ret, wfmstats.long_maxdd)
-                wf.write('%s\n' % line)
+                line = line + ',%0.2f' % wfmstats.long_total_ret
+                if not resultsumm.has_key(model):
+                    resultsumm[model] = [[],[],[]]
+                    
+                resultsumm[model][0].append(wfmstats.long_only_imp)
+                resultsumm[model][1].append(wfmstats.long_total_ret)
+                resultsumm[model][2].append(wfmstats.long_maxdd)
+            wf.write('%s\n' % line)
+            
+        line = 'avg_total_ret'
+        for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
+            line = line + ',%0.2f' % numpy.average(resultsumm[model][1])
+        wf.write('%s\n' % line)
+
+        line = 'std_total_ret'
+        for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
+            line = line + ',%0.2f' % numpy.std(resultsumm[model][1])
+        wf.write('%s\n' % line)
+
+        line = 'ret_std_ratio'
+        for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
+            line = line + ',%0.3f' % (numpy.average(resultsumm[model][1]) / numpy.std(resultsumm[model][1]))
+        wf.write('%s\n' % line)
+
+        line = 'avg_long_imp'
+        for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
+            line = line + ',%0.2f' % numpy.average(resultsumm[model][0])
+        wf.write('%s\n' % line)
+
+        line = 'avg_maxdd'
+        for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
+            line = line + ',%0.2f' % numpy.average(resultsumm[model][2])
+        wf.write('%s\n' % line)
+
+        line = 'ret_maxdd_ratio'
+        for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
+            line = line + ',%0.3f' % (numpy.average(resultsumm[model][1]) / numpy.average(resultsumm[model][2]))
+        wf.write('%s\n' % line)
+        
         wf.close()
+        
+        ranked = sorted(resultsumm.iteritems(), key=lambda x: numpy.average(x[1]), reverse=True)
+        print 'Ranked model performance...'
+        print '%-12s%-12s%-12s%-12s' % ('Model','Avg Ret', 'Avg Imp','Ret/Std Ratio')
+        for (k,v) in ranked:
+            print '%-12s%-12.2f%-12.3f%-12.3f' % (k, numpy.average(v[1]),numpy.average(v[0]),numpy.average(v[1]) / numpy.std(v[1]))
+        
         os.chdir('..')
     
     def usage(self):
@@ -144,24 +218,34 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
         --rescan      - do not perform any new TSSB runs, just uses 
                         existing .log files from a previous run and 
                         re-reports results
-        --trades <file> - file containing the trades to use for this
+        --trades <file>- file containing the trades to use for this
                         model run. (default = tssp_long.csv)
         --num_vars <num>- number of variables to use for each source
                         model. (default = 1)
         --model <type>- model type to use for source models.  Supported
                         options: LINREG, QUADRATIC, GRNN. (default =
                         LINREG)
-        --with_val      use a validation year to select models based
+        --with_val    - use a validation year to select models based
                         on out-of-sample performance.  Note - this option
                         shifts the true walk-forward year ahead by 1 so
                         performance for 2002 is actually out-of-sample
                         performance for 2004 
-        --retention <num> value to use for the STEPWISE RETENTION 
+        --retention <num>-value to use for the STEPWISE RETENTION 
                         setting in all relevant stages
-        --min_crit <float> value to use for the MIN CRITERION FRACTION
+        --min_crit <float>-value to use for the MIN CRITERION FRACTION
                         setting in all relevant stages
-        --var_thresh <float> threshold to use for variable selection after
+        --var_thresh <float>-threshold to use for variable selection after
                         the subsampling stage
+        --vars <base> - base name of the aggregate variable database and
+                        corresponding definition file 
+        --stage1_crit <crit>-set the CRITERION to be used for the stage 1-
+                        subsampling phase used for variable down-select. 
+                        Most be one of the supported TSSB criterion strings.
+        --stage2_crit <crit>-set the CRITERION to be used for the stage 2-
+                        find groups phase used for model selection. 
+                        Most be one of the supported TSSB criterion strings.
+        --stage3_crit <crit>-set the CRITERION to be used for the stage 3-
+                        walk-forward testing.
 '''
     
     def apply_script_template(self, template, output, varmap):
@@ -200,7 +284,13 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
         else:
             self._varmap['<VAL_YEAR>'] = '%s' % (year + 1)
             self._varmap['<TEST_YEAR>'] = '%s' % (year + 1)
-        self._varmap['<VAR_1>'] = vars_.varlist()[0]
+        # check for a special case here - if the DB was generated by build_ind_dbs
+        # the first variable is always RSI_99 which is a dummy variable used to
+        # make TSSB happy
+        if vars_.varlist()[0] == 'RSI_99':
+            self._varmap['<VAR_1>'] = vars_.varlist()[1]
+        else:
+            self._varmap['<VAR_1>'] = vars_.varlist()[0]
         self._varmap['<VAR_N>'] = vars_.varlist()[-1]
         
         for s in self._stage1_scripts:
