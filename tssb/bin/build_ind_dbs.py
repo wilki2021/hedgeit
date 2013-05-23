@@ -37,7 +37,7 @@ class SimMain(object):
     
         rescan = False
         for o, a in opts:
-            if o == 'rescan':
+            if o == '--rescan':
                 rescan = True
             else:
                 # we don't support any options so anything here is a problem.
@@ -65,8 +65,8 @@ class SimMain(object):
         os.chdir(dbloc)
             
         # write all the individual indicator databases
-        read_databases = None
-        for v in vars_.vars():
+        read_databases = ''
+        for v in vars_.varlist():
             if not rescan:
                 # write a file with this one indicator
                 tmp = open("tmp.txt","w")
@@ -77,12 +77,9 @@ class SimMain(object):
                 self.apply_script_template('..\create1.txt', 'create1.txt', self._varmap)
                 self.run_tssb_wrapper('create1.txt', 'create1.log')
                 
-            if not read_databases:
-                read_databases = 'READ DATABASE "%s.DAT" ;\r\n' % v
-            else:
-                read_databases = read_databases + 'APPEND DATABASE "%s.DAT" ;\r\n' % v
+            read_databases = read_databases + 'APPEND DATABASE "%s.DAT" ;\r\n' % v
 
-        self._varmap['<READ_DATABASES>'] = read_databases
+        self._varmap['<APPEND_DATABASES>'] = read_databases
         self._varmap['<DB_NAME>'] = 'all'
         self.apply_script_template('..\createall.txt', 'createall.txt', self._varmap)
         self.run_tssb_wrapper('createall.txt', 'createall.log')
