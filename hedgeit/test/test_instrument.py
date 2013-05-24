@@ -45,6 +45,13 @@ class Test(unittest.TestCase):
         self.assertEqual( i.sector(), 'Ag Commodities' )
         self.assertEqual( i.description(), 'test description' )
 
+    def testAltDate(self):
+        datafile = '%s/data/S2___CCB.csv' % os.path.dirname(__file__)
+
+        i = Instrument('S2',datafile)
+        i.load_data()
+        self.assertAlmostEqual( i.bars()[0].close(), 1001.75 )
+
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testBasic']
     unittest.main()

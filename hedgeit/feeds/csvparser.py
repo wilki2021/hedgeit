@@ -42,7 +42,7 @@ class PremiumDataParser(RowParser):
 
     def getFieldNames(self):
         '''Field names present on row 1 so return None.'''
-        return None
+        return ['Date','Open','High','Low','Close','Volume','Open Interest']
 
     def getDelimiter(self):
         return ","

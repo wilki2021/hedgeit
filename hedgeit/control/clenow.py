@@ -211,16 +211,13 @@ class ClenowController(object):
         lf = open('%s_long.csv' % filebase,'w')
         
         # write the header rows
-        # Note that TSSP is only supported on Windows so we go head
-        # and write these files with \r\n to avoid the step of running
-        # unix2dos or equivalent
-        sf.write('Date,Market,Contracts,Points,SCALEDPROFIT,REALPROFIT\r\n')
-        lf.write('Date,Market,Contracts,Points,SCALEDPROFIT,REALPROFIT\r\n')
+        sf.write('Date,Market,Contracts,Points,SCALEDPROFIT,REALPROFIT\n')
+        lf.write('Date,Market,Contracts,Points,SCALEDPROFIT,REALPROFIT\n')
         
         for t in alltrades:
             fp = sf if t.getTradeSize() < 0 else lf
 
-            fp.write('%s,%s,%d,%0.3f,%0.5f,%0.5f\r\n' % 
+            fp.write('%s,%s,%d,%0.3f,%0.5f,%0.5f\n' % 
                         (t.getEntryDate().strftime("%Y%m%d"),
                          t.getSymbol(),
                          t.getTradeSize(),
@@ -240,7 +237,7 @@ class ClenowController(object):
             logger.info('There are %d new trade alerts' % len(allalerts))
             
         wf = open(filename,"w")
-        wf.write('Symbol,Quantity,Action\r\n')
+        wf.write('Symbol,Quantity,Action\n')
 
         for alert in allalerts:
             wf.write('%s,%d,%s\n' %

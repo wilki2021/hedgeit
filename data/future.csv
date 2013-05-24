@@ -1,0 +1,47 @@
+description,symbol,pointValue,currency,exchange,initialMargin,maintMargin,sector,datafile,Interactive,TradeStation
+10-YR T-NOTE,TY2,1000,USD,CME,1485,1100,Rates,TY2__CCB.csv,Y,Y
+2-YR T-NOTE,TU2,2000,USD,CME,304,225,Rates,TU2__CCB.csv,Y,Y
+AUSTRALIAN DLR.,AD,100000,USD,CME,1650,1500,Currencies,AD___CCB.csv,Y,Y
+BRITISH POUND,BP,62500,USD,CME,1320,1200,Currencies,BP___CCB.csv,Y,Y
+CAC 40,FCE,10,EUR,Euronext,2100,2100,Equity Index,FCE__CCB.csv,*,N
+Canadian Bankers' Acceptance,BAX,2500,CAD,MX,311,311,Rates,BAX__CCB.csv,*,N
+CANADIAN DLR.,CD,100000,USD,CME,1100,1000,Currencies,CD___CCB.csv,Y,Y
+COPPER (COMEX),HG2,250,USD,COMEX,3410,3100,Non-Ag Commodities,HG2__CCB.csv,Y,Y
+Corn,C2,50,USD,CBT,2700,2000,Agricultural,C2___CCB.csv,Y,Y
+Cotton,CT2,500,USD,CBT,1760,1600,Agricultural,CT2__CCB.csv,Y,Y
+Crude oil,CL2,1000,USD,NYMEX,4950,4500,Non-Ag Commodities,CL2__CCB.csv,Y,Y
+DAX,DAX,25,EUR,EUREX,12668,12668,Equity Index,DAX__CCB.csv,*,N
+DJ STOXX 50 INDEX*,ESX,10,EUR,Euronext,1896,1896,Equity Index,ESX__CCB.csv,*,Y
+Euribor,LEU,2500,EUR,Euronext,500,500,Rates,LEU__CCB.csv,*,N
+EURO CURRENCY,EC,125000,USD,CME,2475,2250,Currencies,EC___CCB.csv,Y,Y
+EURO-BUND*,GBL,1000,EUR,Euronext,2050,2050,Rates,GBL__CCB.csv,*,Y
+EURODOLLAR (CME),ED,2500,USD,CME,270,200,Rates,ED___CCB.csv,Y,Y
+EURO-SCHATZ,GBS,1000,EUR,Euronext,390,390,Rates,GBS__CCB.csv,*,Y
+Euroswiss,LES,2500,CHF,Euronext,500,500,Rates,LES__CCB.csv,*,N
+FTSE 100,LFT,10,GBP,Euronext,3000,3000,Equity Index,LFT__CCB.csv,*,N
+Gasoil,GO,100,USD,NYMEX,3150,3150,Non-Ag Commodities,GO___CCB.csv,N,N
+Gasoline,RB2,42000,USD,NYMEX,5500,5000,Non-Ag Commodities,RB2__CCB.csv,Y,Y
+GOLD (COMEX),GC2,100,USD,COMEX,7040,6400,Non-Ag Commodities,GC2__CCB.csv,Y,Y
+Hang Seng,HS,50,HKD,HKEX,0,0,Equity Index,HS___CCB.csv,*,N
+Heating oil,HO2,42000,USD,NYMEX,4290,3900,Non-Ag Commodities,HO2__CCB.csv,Y,Y
+JAPANESE YEN,JY,125000,USD,CME,3410,3100,Currencies,JY___CCB.csv,Y,Y
+Lean hogs,LH,400,USD,CME,1418,1050,Agricultural,LH___CCB.csv,Y,Y
+Live Cattle,LC,400,USD,CME,1350,1000,Agricultural,LC___CCB.csv,Y,Y
+Long gilt,LLG,1000,GBP,Euronext,3000,3000,Rates,LLG__CCB.csv,*,N
+LUMBER (CME),LB,110,USD,CME,2175,1450,Agricultural,LB___CCB.csv,Y,Y
+MINI RUSSELL 2000 (ICE)*,TF,100,USD,ICE,5280,4800,Equity Index,TF___CCB.csv,N,Y
+E-mini NASDAQ 100,NQ,20,USD,CME,2200,2000,Equity Index,NQ___CCB.csv,Y,Y
+Natural gas,NG2,10000,USD,NYMEX,2310,2100,Non-Ag Commodities,NG2__CCB.csv,Y,Y
+NEW ZEALAND DLR.,NE,100000,USD,CME,1650,1500,Currencies,NE___CCB.csv,Y,Y
+NIKKEI ($ BASED) (CME),NK,5,USD,CME,2200,2000,Equity Index,NK___CCB.csv,Y,Y
+Oats,O2,50,USD,CBT,1350,1000,Agricultural,O2___CCB.csv,Y,Y
+PALLADIUM (NYMEX),PA2,100,USD,NYMEX,4400,4000,Non-Ag Commodities,PA2__CCB.csv,Y,Y
+PLATINUM (NYMEX),PL2,50,USD,NYMEX,3080,2800,Non-Ag Commodities,PL2__CCB.csv,Y,Y
+Rough rice,RR2,20,USD,CBT,1350,1000,Agricultural,RR2__CCB.csv,Y,Y
+E-mini S&P 500,ES,50,USD,CME,3850,3500,Equity Index,ES___CCB.csv,Y,Y
+Short sterling,LSS,1250,GBP,Euronext,350,350,Rates,LSS__CCB.csv,*,N
+SILVER (COMEX),SI2,50,USD,COMEX,12375,11250,Non-Ag Commodities,SI2__CCB.csv,Y,Y
+Soybeans,S2,50,USD,CBT,4590,3400,Agricultural,S2___CCB.csv,Y,Y
+SUGAR #11,SB2,1120,USD,NYMEX,1485,1350,Agricultural,SB2__CCB.csv,Y,Y
+SWISS FRANC,SF,125000,USD,CME,2200,2000,Currencies,SF___CCB.csv,Y,Y
+Wheat,W2,50,USD,CBT,3240,2400,Agricultural,W2___CCB.csv,Y,Y

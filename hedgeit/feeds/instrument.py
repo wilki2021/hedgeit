@@ -87,8 +87,15 @@ class Instrument(object):
             logger.error('Unable to locate datafile %s for %s' % (self._datafile, self._symbol))
             return
 
+        # need to peek at the first line of the file and see if there is a header row
         rowparser = PremiumDataParser()
-        reader = csv.DictReader(open(self._datafile, "r"), fieldnames=rowparser.getFieldNames(), delimiter=rowparser.getDelimiter())
+        f = open(self._datafile)
+        if f.readline().find('Date') != -1:
+            fieldnames = None
+        else:
+            fieldnames=rowparser.getFieldNames()
+        f.close()
+        reader = csv.DictReader(open(self._datafile, "r"), fieldnames=fieldnames, delimiter=rowparser.getDelimiter())
         for row in reader:
             bar_ = rowparser.parseBar(row)
             if bar_ != None:
