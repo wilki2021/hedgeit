@@ -56,7 +56,7 @@ class SimMain(object):
                 print 'Will rescan TSSB results only - no new TSSB runs'
             elif o == '--trades':
                 print 'Using trade database %s' % a
-                self._varmap['<TRADE_DB>'] = '..\\\\..\\\\' % a
+                self._varmap['<TRADE_DB>'] = '..\\\\..\\\\%s' % a
             elif o == '--num_vars':
                 print 'Using %s variables' % a
                 self._varmap['<NUM_VARS>'] = a
@@ -104,30 +104,37 @@ class SimMain(object):
         yearstart = int(args[1])
         yearend = int(args[2])
     
-        for s in self._stage1_scripts:
-            if not os.path.exists(s):
-                print 'Error: must have the script template %s in current directory' % s
-        for s in self._stage2_scripts:
-            if not os.path.exists(s):
-                print 'Error: must have the script template %s in current directory' % s
-    
-        vars_ = VarParser('%s.TXT' % self._varbase)
-    
         if not rescan:
+            for s in self._stage1_scripts:
+                if not os.path.exists(s):
+                    print 'Error: must have the script template %s in current directory' % s
+            for s in self._stage2_scripts:
+                if not os.path.exists(s):
+                    print 'Error: must have the script template %s in current directory' % s
+
+            vars_ = VarParser('%s.TXT' % self._varbase)
             if os.path.exists(runname):
                 shutil.rmtree(runname)
             os.mkdir(runname)
         os.chdir(runname)
     
-        wf = open("runvars.json",'w')
-        vardump = json.dumps(self._varmap,indent=4,sort_keys=True)
-        wf.write(vardump)
-        wf.close()
+        if not rescan:
+            # only dump out the runvars if not rescanning
+            wf = open("runvars.json",'w')
+            vardump = json.dumps(self._varmap,indent=4,sort_keys=True)
+            wf.write(vardump)
+            wf.close()
         
         wf = open("perf.csv","w")
         headers = False
         resultsumm = {}
         for y in range(yearstart, yearend+1):
+            # sanity check the year the user gave us to make sure it makes sense
+            if (self._with_val and ((y + 2) > int(self._varmap['<YEAR_MAX>']))) or \
+                (not self._with_val and ((y + 1) > int(self._varmap['<YEAR_MAX>']))):
+                print 'Warning - skipping year %d because no data' % y
+                continue
+                
             # we get back the results from 1 walk-forward year
             if rescan:
                 res = self.rescan_iteration(y)
@@ -183,8 +190,7 @@ class SimMain(object):
         wf.write('%s\n' % line)
         
         wf.close()
-        
-        ranked = sorted(resultsumm.iteritems(), key=lambda x: numpy.average(x[1]), reverse=True)
+        ranked = sorted(resultsumm.items(), key=lambda x: numpy.average(x[1][1]), reverse=True)
         print 'Ranked model performance...'
         print '%-12s%-12s%-12s%-12s' % ('Model','Avg Ret', 'Avg Imp','Ret/Std Ratio')
         for (k,v) in ranked:
@@ -364,7 +370,11 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
         return ret
     
     def rescan_iteration(self,year):
-        audfile = '%d/pselect_audit.log' % year
+        if self._with_val:
+            audfile = '%d/pselect_test_audit.log' % year
+        else:
+            audfile = '%d/pselect_audit.log' % year
+            
         if not os.path.exists(audfile):
             raise Exception('Cannot rescan - %s does not exist!' % audfile)
         return AuditParser(audfile)
