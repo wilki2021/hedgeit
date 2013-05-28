@@ -8,7 +8,7 @@ import os
 import shutil
 import sys
 import re
-
+#sed 's/\-[\.0-9]*/0\.0001/g' RB2__CCB.csv |grep 20081223
 class Main(object):
     
     def __init__(self):
