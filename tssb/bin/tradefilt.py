@@ -152,11 +152,13 @@ class SimMain(object):
             for (model,wfmstats) in sorted(res.tssbrun().walkforward_summ().iteritems()):
                 line = line + ',%0.2f' % wfmstats.long_total_ret
                 if not resultsumm.has_key(model):
-                    resultsumm[model] = [[],[],[]]
+                    resultsumm[model] = [[],[],[],[],[]]
                     
                 resultsumm[model][0].append(wfmstats.long_only_imp)
                 resultsumm[model][1].append(wfmstats.long_total_ret)
                 resultsumm[model][2].append(wfmstats.long_maxdd)
+                resultsumm[model][3].append(wfmstats.total_cases)
+                resultsumm[model][4].append(wfmstats.num_above_high)
             wf.write('%s\n' % line)
             
         line = 'avg_total_ret'
@@ -192,9 +194,13 @@ class SimMain(object):
         wf.close()
         ranked = sorted(resultsumm.items(), key=lambda x: numpy.average(x[1][1]), reverse=True)
         print 'Ranked model performance...'
-        print '%-12s%-12s%-12s%-12s' % ('Model','Avg Ret', 'Avg Imp','Ret/Std Ratio')
+        print '%-12s%-12s%-12s%-12s%-12s' % ('Model','Avg Ret', 'Avg Imp','Ret/Std Rat','Trade Rat')
         for (k,v) in ranked:
-            print '%-12s%-12.2f%-12.3f%-12.3f' % (k, numpy.average(v[1]),numpy.average(v[0]),numpy.average(v[1]) / numpy.std(v[1]))
+            print '%-12s%-12.2f%-12.3f%-12.3f%-12.3f' % (k, 
+                                                         numpy.average(v[1]),
+                                                         numpy.average(v[0]),
+                                                         numpy.average(v[1]) / numpy.std(v[1]),
+                                                         numpy.sum(v[4]) * 1.0 / numpy.sum(v[3]))
         
         os.chdir('..')
     
