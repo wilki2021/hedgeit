@@ -8,7 +8,6 @@ import os
 import shutil
 import sys
 import re
-#sed 's/\-[\.0-9]*/0\.0001/g' RB2__CCB.csv |grep 20081223
 class Main(object):
     
     def __init__(self):
@@ -54,7 +53,15 @@ class Main(object):
             mat = symbol.match(f)
             if mat:
                 targname = '%s.csv' % mat.group(1)
-                shutil.copy(os.path.join(srcdata,f),os.path.join(datadir,targname))
+                targfile = os.path.join(datadir,targname)
+                shutil.copy(os.path.join(srcdata,f),targfile)
+                
+                # we need to replace some negative numbers since TSSB
+                # can't handle them.  There are several contracts with 
+                # negatives but the only one we are using is RB2
+                if targname == 'RB2.csv':
+                    cmd = 'sed -i \'s/\-[\.0-9]*/0\.0001/g\' %s' % targfile
+                    os.system(cmd)
             
     def usage(self):
         print '''
