@@ -114,6 +114,7 @@ usage: update.py <TBD>
             try:
                 text = mainwin['WindowsForms10.RichEdit20W.app.0.378734a'].Texts()[0]
                 if text.find('Finished.') != -1:
+                    time.sleep(1.0)
                     break
             except:
                 time.sleep(0.5)
