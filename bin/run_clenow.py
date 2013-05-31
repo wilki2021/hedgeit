@@ -35,7 +35,7 @@ usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
         -t          : model type ('breakout', 'macross', or 'rsicounter', default = 'breakout')
         -g          : no compounding of equity
         
-        -tssb <name>: write out two files for tssb consumption - <name>_long.csv
+        --tssb <name>: write out two files for tssb consumption - <name>_long.csv
                       and <name>_short.csv containing long and short trades
                       respectively.   
         
