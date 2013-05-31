@@ -61,9 +61,11 @@ class Test(unittest.TestCase):
         self.assertEqual(strat.getPositions()['RR'].getEntryOrder().getAction(),Order.Action.SELL_SHORT)
         alerts = strat.tradeAlerts()
         self.assertEqual(len(alerts),1)
-        self.assertEqual(alerts[0].getInstrument(), 'RR')
-        self.assertEqual(alerts[0].getQuantity(),4)
-        self.assertEqual(alerts[0].getAction(),Order.Action.SELL_SHORT)
+        order = alerts[0][0]
+        self.assertEqual(order.getInstrument(), 'RR')
+        self.assertEqual(order.getQuantity(),4)
+        self.assertEqual(order.getAction(),Order.Action.SELL_SHORT)
+        self.assertAlmostEqual(alerts[0][1], 0.0019, places=4)
         
         tlog = '%s/trade6.log' % os.path.dirname(__file__)
         tradesAnalyzer.writeTradeLog(tlog)

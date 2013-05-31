@@ -1,2 +1,2 @@
-Symbol,Quantity,Action
-RR,4,SELL_SHORT
+Symbol,Quantity,Action,ImpliedRisk
+RR,4,SELL_SHORT,0.0019

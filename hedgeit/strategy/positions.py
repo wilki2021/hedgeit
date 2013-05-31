@@ -50,6 +50,7 @@ class Position:
         self.__exitOnSessionClose = False
         entryOrder.setGoodTillCanceled(goodTillCanceled)
         self.__exitDateTime = None
+        self.__impliedRisk = None
 
     def getStrategy(self):
         return self.__strategy
@@ -160,6 +161,12 @@ class Position:
 
     def isShort(self):
         return not self.isLong()
+    
+    def setImpliedRisk(self, impliedRisk):
+        self.__impliedRisk = impliedRisk
+        
+    def getImpliedRisk(self):
+        return self.__impliedRisk
 
 # This class is reponsible for order management in long positions.
 class LongPosition(Position):

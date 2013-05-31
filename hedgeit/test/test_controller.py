@@ -62,8 +62,11 @@ class Test(unittest.TestCase):
         self.assertTrue(test_util.file_compare('%s/summary.refcsv' % os.path.dirname(__file__), slog))
         os.system('rm %s' % slog)
 
-
-
+        # now check the last open trades 
+        last_trades = ctrl.get_last_exit_orders()
+        self.assertEqual(len(last_trades),1)
+        self.assertEqual(last_trades[0].getStopPrice(),1476.35)
+            
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

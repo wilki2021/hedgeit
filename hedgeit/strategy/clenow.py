@@ -76,6 +76,16 @@ class ClenowBreakoutStrategy(Strategy):
             ret = 1
         else:
             ret = round(target_quant)
+        return (ret, ret * atr * self._db.get(instrument).point_value() / self.getBroker().getCash())
+        
+    def enterLong(self, instrument, quantity, impliedRisk, limit=None, stop=None, goodTillCanceled = False):
+        ret = Strategy.enterLong(self, instrument, quantity, limit, stop, goodTillCanceled)
+        ret.setImpliedRisk(impliedRisk)
+        return ret
+
+    def enterShort(self, instrument, quantity, impliedRisk, limit=None, stop=None, goodTillCanceled = False):
+        ret = Strategy.enterShort(self, instrument, quantity, limit, stop, goodTillCanceled)
+        ret.setImpliedRisk(impliedRisk)
         return ret
         
     def onBars(self, bars):
@@ -113,15 +123,15 @@ class ClenowBreakoutStrategy(Strategy):
                     
                     # check for long entry first
                     if bar.short_ma() >= bar.long_ma() and bar.close() >= bar.max():
-                        pos_size = self._calc_position_size(sym, bar.atr())
-                        self._positions[sym] = self.enterLong(sym, pos_size, goodTillCanceled=True)
+                        (pos_size, risk) = self._calc_position_size(sym, bar.atr())
+                        self._positions[sym] = self.enterLong(sym, pos_size, risk, goodTillCanceled=True)
                         # set up our exit order
                         self._tradeHigh[sym] = bar.close()
                         self.exitPosition(self._positions[sym], stopPrice=self._tradeHigh[sym]-self._stop*bar.atr(), goodTillCanceled=True)
                     # then short entry
                     elif bar.short_ma() <= bar.long_ma() and bar.close() <= bar.min():
-                        pos_size = self._calc_position_size(sym, bar.atr())
-                        self._positions[sym] = self.enterShort(sym, pos_size, goodTillCanceled=True)
+                        (pos_size, risk) = self._calc_position_size(sym, bar.atr())
+                        self._positions[sym] = self.enterShort(sym, pos_size, risk, goodTillCanceled=True)
                         self._tradeLow[sym] = bar.close()
                         self.exitPosition(self._positions[sym], stopPrice=self._tradeLow[sym]+self._stop*bar.atr(), goodTillCanceled=True)
                 elif self._positions.has_key(sym):
@@ -135,6 +145,14 @@ class ClenowBreakoutStrategy(Strategy):
                             self._tradeLow[sym] = bar.close()
                         self.exitPosition(self._positions[sym], stopPrice=self._tradeLow[sym]+self._stop*bar.atr(), goodTillCanceled=True)
          
+    def getExitOrders(self):
+        ret = []
+        for sym in self._positions:
+            if self._positions[sym].entryFilled():
+                ret.append(self._positions[sym].getExitOrder())
+            
+        return ret
+            
     def exitPositions(self):
         for sym in self._positions:
             # we have two cases to detect/handle.  If the position has been entered
@@ -152,7 +170,7 @@ class ClenowBreakoutStrategy(Strategy):
         ret = []
         for sym in self._positions:
             if not self._positions[sym].entryFilled():
-                ret.append(self._positions[sym].getEntryOrder())
+                ret.append((self._positions[sym].getEntryOrder(), self._positions[sym].getImpliedRisk()))
         return ret  
         
         
@@ -185,14 +203,14 @@ class ClenowBreakoutNoIntraDayStopStrategy(ClenowBreakoutStrategy):
                     
                     # check for long entry first
                     if bar.short_ma() >= bar.long_ma() and bar.close() >= bar.max():
-                        pos_size = self._calc_position_size(sym, bar.atr())
-                        self._positions[sym] = self.enterLong(sym, pos_size, goodTillCanceled=True)
+                        (pos_size, risk) = self._calc_position_size(sym, bar.atr())
+                        self._positions[sym] = self.enterLong(sym, pos_size, risk, goodTillCanceled=True)
                         # set up our exit order
                         self._tradeHigh[sym] = bar.close()
                     # then short entry
                     elif bar.short_ma() <= bar.long_ma() and bar.close() <= bar.min():
-                        pos_size = self._calc_position_size(sym, bar.atr())
-                        self._positions[sym] = self.enterShort(sym, pos_size, goodTillCanceled=True)
+                        (pos_size, risk) = self._calc_position_size(sym, bar.atr())
+                        self._positions[sym] = self.enterShort(sym, pos_size, risk, goodTillCanceled=True)
                         self._tradeLow[sym] = bar.close()
                 elif self._positions.has_key(sym):
                     # we need to check our exit daily 

@@ -38,7 +38,7 @@ class ClenowController(object):
             for sym in sectorMap[sec]:
                 self._feed.register_feed(Feed(self._db.get(sym)))
         
-            # if desired can instatiate a strategy per symbol - may actually
+            # if desired can instantiate a strategy per symbol - may actually
             # want to think about this as a default behavior.  The only thing
             # impacted is reporting of sector results
             # strategySymbols = { sym }
@@ -101,6 +101,8 @@ class ClenowController(object):
         
         self._dd = DrawDown()
         self._dd.attached(self)
+        self._lastExitOrders = []
+        self._tradeAlerts = []
         
     def getBroker(self):
         return self._broker
@@ -120,6 +122,12 @@ class ClenowController(object):
     def get_trade_profit(self):
         return self._tradeProfit
     
+    def get_last_exit_orders(self):
+        return self._lastExitOrders
+
+    def get_trade_alerts(self):
+        return self._tradeAlerts
+        
     def run(self, feedStart, tradeStart, tradeEnd):
         # sanity check our parms
         assert(feedStart <= tradeStart)
@@ -227,23 +235,18 @@ class ClenowController(object):
         sf.close()
         lf.close()         
 
-    def writeTradeAlerts(self, filename):
-        # get one list with all trade alerts
-        allalerts = []
-        for sec in self._runGroups:
-            allalerts.extend(self._runGroups[sec].strategy().tradeAlerts())
-
-        if len(allalerts):
-            logger.info('There are %d new trade alerts' % len(allalerts))
-            
+    def writeTradeAlerts(self, filename):            
         wf = open(filename,"w")
-        wf.write('Symbol,Quantity,Action\n')
+        wf.write('Symbol,Quantity,Action,ImpliedRisk\n')
 
-        for alert in allalerts:
-            wf.write('%s,%d,%s\n' %
-                     (alert.getInstrument(),
-                     alert.getQuantity(),
-                     Order.Action.action_strs[alert.getAction()]))
+        for alert in self._tradeAlerts:
+            order = alert[0]
+            risk = alert[1]
+            wf.write('%s,%d,%s,%0.4f\n' %
+                     (order.getInstrument(),
+                     order.getQuantity(),
+                     Order.Action.action_strs[order.getAction()],
+                     risk))
         wf.close()
         
         
@@ -257,9 +260,22 @@ class ClenowController(object):
         # want to report our positions before exiting them
         self._print_sector_positions(datetime)
 
+        # also need to grab current exit orders to report stop prices        
+        self._lastExitOrders = []
+        for sec in self._runGroups:
+            self._lastExitOrders.extend(self._runGroups[sec].strategy().getExitOrders())
+        self._lastExitOrders = sorted(self._lastExitOrders, key=lambda x: x.getInstrument(), reverse=True)
+        
         # exit all positions - this needs to happen before we report final equity and returns
         for sec in self._runGroups:
             self._runGroups[sec].strategy().exitPositions()
+
+        # get one list with all trade alerts
+        self._tradeAlerts = []
+        for sec in self._runGroups:
+            self._tradeAlerts.extend(self._runGroups[sec].strategy().tradeAlerts())
+        if len(self._tradeAlerts):
+            logger.info('There are %d new trade alerts' % len(self._tradeAlerts))
 
         self._dd.beforeOnBars(self)
         self._print_sector_equity(datetime)
