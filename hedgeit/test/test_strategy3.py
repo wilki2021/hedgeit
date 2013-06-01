@@ -133,7 +133,7 @@ class Test(unittest.TestCase):
         tlog = '%s/trade.log' % os.path.dirname(__file__)
         tradesAnalyzer.writeTradeLog(tlog)
         self.assertTrue(test_util.file_compare('%s/trade1.reflog' % os.path.dirname(__file__), tlog))
-        os.system('rm %s' % tlog)
+        os.remove(tlog)
 
 
 if __name__ == "__main__":

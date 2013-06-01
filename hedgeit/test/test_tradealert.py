@@ -76,7 +76,7 @@ class Test(unittest.TestCase):
         self.assertEqual(tradesAnalyzer.getUnprofitableCount(),1)
         
         self.assertTrue(test_util.file_compare('%s/trade6.reflog' % os.path.dirname(__file__), tlog))
-        os.system('rm %s' % tlog)
+        os.remove(tlog)
 
     def testControllerTradeAlerts(self):
         plog = '%s/positions.csv' % os.path.dirname(__file__)
@@ -91,7 +91,7 @@ class Test(unittest.TestCase):
         ctrl.writeTradeAlerts(tlog)
         
         self.assertTrue(test_util.file_compare('%s/tradealert.reflog' % os.path.dirname(__file__), tlog))
-        os.system('rm %s' % tlog)
+        os.remove(tlog)
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testBasic']

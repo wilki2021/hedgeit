@@ -52,15 +52,15 @@ class Test(unittest.TestCase):
         self.assertEqual(trades.getUnprofitableCount(),5)
         
         self.assertTrue(test_util.file_compare('%s/trade4.reflog' % os.path.dirname(__file__), tlog))
-        os.system('rm %s' % tlog)
+        os.remove(tlog)
         self.assertTrue(test_util.file_compare('%s/positions.refcsv' % os.path.dirname(__file__), plog))
-        os.system('rm %s' % plog)
+        os.remove(plog)
         self.assertTrue(test_util.file_compare('%s/equity.refcsv' % os.path.dirname(__file__), elog))
-        os.system('rm %s' % elog)
+        os.remove(elog)
         self.assertTrue(test_util.file_compare('%s/returns.refcsv' % os.path.dirname(__file__), rlog))
-        os.system('rm %s' % rlog)
+        os.remove(rlog)
         self.assertTrue(test_util.file_compare('%s/summary.refcsv' % os.path.dirname(__file__), slog))
-        os.system('rm %s' % slog)
+        os.remove(slog)
 
         # now check the last open trades 
         last_trades = ctrl.get_last_exit_orders()

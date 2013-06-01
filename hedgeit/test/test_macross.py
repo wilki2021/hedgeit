@@ -62,7 +62,7 @@ class Test(unittest.TestCase):
         self.assertEqual(tradesAnalyzer.getUnprofitableCount(),6)
         
         self.assertTrue(test_util.file_compare('%s/trade5.reflog' % os.path.dirname(__file__), tlog))
-        os.system('rm %s' % tlog)
+        os.remove(tlog)
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testBasic']

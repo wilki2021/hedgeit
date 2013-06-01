@@ -239,6 +239,9 @@ class ClenowController(object):
             t = alert[0]
             fp = sf if t.getAction() == Order.Action.SELL_SHORT else lf
 
+            # TODO - going to have to figure out something more sophisticated to
+            # get the correct date for the new trade.  It could be the case that
+            # the current bars does not include data for the instrument in question
             tradeSize = -t.getQuantity() if t.getAction() == Order.Action.SELL_SHORT else t.getQuantity()
             fp.write('%s,%s,%d,%0.3f,%0.5f,%0.5f\n' % 
                         (self._feed.get_current_bars().datetime().strftime("%Y%m%d"),

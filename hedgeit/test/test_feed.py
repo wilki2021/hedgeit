@@ -118,7 +118,7 @@ class Test(unittest.TestCase):
         wf.close()
         
         self.assertTrue(test_util.file_compare('%s/writefeed.refcsv' % os.path.dirname(__file__), feedout))
-        os.system('rm %s' % feedout)
+        os.remove(feedout)
 
         
 if __name__ == "__main__":

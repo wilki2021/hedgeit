@@ -52,6 +52,7 @@ class Test(unittest.TestCase):
         
         mf.start()
         strat.exitPositions()
+        strat.getBroker().executeSessionClose()
 
         tlog = '%s/trade2.log' % os.path.dirname(__file__)
         tradesAnalyzer.writeTradeLog(tlog)
@@ -62,7 +63,7 @@ class Test(unittest.TestCase):
         self.assertEqual(tradesAnalyzer.getUnprofitableCount(),5)
         
         self.assertTrue(test_util.file_compare('%s/trade2.reflog' % os.path.dirname(__file__), tlog))
-        os.system('rm %s' % tlog)
+        os.remove(tlog)
 
     def testClenowTradeStart(self):
         mf = MultiFeed()
@@ -81,6 +82,7 @@ class Test(unittest.TestCase):
         
         mf.start()
         strat.exitPositions()
+        strat.getBroker().executeSessionClose()
 
         tlog = '%s/trade3.log' % os.path.dirname(__file__)
         tradesAnalyzer.writeTradeLog(tlog)
@@ -91,7 +93,7 @@ class Test(unittest.TestCase):
         self.assertEqual(tradesAnalyzer.getUnprofitableCount(),4)
         
         self.assertTrue(test_util.file_compare('%s/trade3.reflog' % os.path.dirname(__file__), tlog))
-        os.system('rm %s' % tlog)
+        os.remove(tlog)
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testBasic']
