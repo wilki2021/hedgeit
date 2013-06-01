@@ -34,7 +34,7 @@ class SimMain(object):
             '<STAGE3_CRIT>' : 'LONG PROFIT FACTOR' }
         self._with_val = False
         self._var_thresh = 3.0
-        self._varbase = 'ALL'
+        self._varbase = 'db/ALL'
 
     def main(self,argv=None):
         try:

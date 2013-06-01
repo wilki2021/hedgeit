@@ -205,7 +205,7 @@ class ClenowController(object):
         logger.info('Losing   Trades : %d (%0.1f%%)' % (len(alltrades) - wins,(len(alltrades) - wins) * 100.0/len(alltrades)))   
         logger.info('Average Loser   : $%0.2f (%0.1f%%)' % ((self._tradeProfit - winamt) / (len(alltrades) - wins),(self._tradeProfit - winamt) *100.0/losemargin))   
         
-    def writeTSSPTrades(self, filebase):
+    def writeTSSBTrades(self, filebase):
         # get one list with all trades
         alltrades = []
         for sec in self._runGroups:
@@ -222,6 +222,7 @@ class ClenowController(object):
         sf.write('Date,Market,Contracts,Points,SCALEDPROFIT,REALPROFIT\n')
         lf.write('Date,Market,Contracts,Points,SCALEDPROFIT,REALPROFIT\n')
         
+        # write out all the trades that actually occurred
         for t in alltrades:
             fp = sf if t.getTradeSize() < 0 else lf
 
@@ -232,6 +233,21 @@ class ClenowController(object):
                          t.getExitPrice() - t.getEntryPrice(),
                          t.getNetProfit(0) / t.getInitialMargin(),
                          t.getNetProfit(0) / self._startingCash * 100.0))
+            
+        # now write out any new trades 
+        for alert in self._tradeAlerts:
+            t = alert[0]
+            fp = sf if t.getAction() == Order.Action.SELL_SHORT else lf
+
+            tradeSize = -t.getQuantity() if t.getAction() == Order.Action.SELL_SHORT else t.getQuantity()
+            fp.write('%s,%s,%d,%0.3f,%0.5f,%0.5f\n' % 
+                        (self._feed.get_current_bars().datetime().strftime("%Y%m%d"),
+                         t.getInstrument(),
+                         tradeSize,
+                         0.0,
+                         0.0,
+                         0.0))
+            
         sf.close()
         lf.close()         
 
@@ -269,6 +285,10 @@ class ClenowController(object):
         # exit all positions - this needs to happen before we report final equity and returns
         for sec in self._runGroups:
             self._runGroups[sec].strategy().exitPositions()
+        # we must call executeSessionClose once after the call to exitPositions for 
+        # each of our rungroup strategy instances.  They executes the market orders
+        # to close open positions
+        self.getBroker().executeSessionClose()    
 
         # get one list with all trade alerts
         self._tradeAlerts = []

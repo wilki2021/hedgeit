@@ -125,7 +125,7 @@ def main(argv=None):
     tlog = 'trades.csv'
     ctrl.writeAllTrades(tlog)
     if tssb:
-        ctrl.writeTSSPTrades(tssb)
+        ctrl.writeTSSBTrades(tssb)
     
     alog = 'alerts.csv'
     ctrl.writeTradeAlerts(alog)

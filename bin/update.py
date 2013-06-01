@@ -13,15 +13,28 @@ import shutil
 import sys
 import time
 from hedgeit.common.sendmail import sendmail
-from tssbutil.runtssb import get_process_list
+from tssbutil.runtssb import get_process_list,run_tssb
+from hedgeit.control.clenow import ClenowController
+from hedgeit.feeds.db import InstrumentDb
+import json
+from hedgeit.common.logger import getLogger
+from hedgeit.broker.orders import Order
+from tssbutil.pdb import DbParser
+
+Log = getLogger(__name__)
 
 class UpdateMain(object):
     
     def __init__(self):
         self._tradeappdir = 'c:/Trading Applications'
         self._dataconvdir = 'c:/Program Files (x86)/Premium Data Converter'
-        self._datadir = os.path.dirname(os.path.abspath(__file__))
-        pass
+        # we know this script is in hedgeit/bin.  We need to create the
+        # path to hedgeit/data for the data update
+        bindir = os.path.dirname(os.path.abspath(__file__))
+        self._basedir = os.path.split(bindir)[0]
+        self._datadir = os.path.join(self._basedir,'data')
+        self._alerts = []
+        self._exitOrders = []
 
     def main(self,argv=None):
         try:
@@ -76,9 +89,46 @@ class UpdateMain(object):
             self.git_commit()
             pass
         
+        tradeup = ''
+        if success:
+            self.run_hedgeit()
+            # build a status message
+            newtrades = 'New Trades:\n'
+            for alert in self._alerts:
+                order = alert[0]
+                risk  = alert[1]
+                newtrades = newtrades + '%s,%s,%d,%0.4f\n' % \
+                     (order.getInstrument(),
+                     Order.Action.action_strs[order.getAction()],
+                     order.getQuantity(),
+                     risk)
+            print newtrades
+            tradeup = 'Trade Updates:\n'
+            for exit in self._exitOrders:
+                tradeup = tradeup + '%s,%s,%d,%0.5f\n' % \
+                    (exit.getInstrument(),
+                     Order.Action.action_strs[exit.getAction()],
+                     exit.getQuantity(),
+                     exit.getStopPrice())
+            print tradeup
+            
+        if success:
+            # we need to run the TSSB setup utility to install the
+            # updated data files
+            tssbsetup = os.path.join(self._basedir,'tssb','setup.py')
+            ret = os.system('python %s' % tssbsetup) >> 8
+            if ret != 0:
+                print 'There were errors installing tssb data'
+                success = False
+            else:
+                print 'TSSB data updates installed successfully'
+            
+        if success:
+            self.run_filter_update()
+                
         msg = 'Data update successful' if success else 'Data update failed'
         if do_msg:
-            self.send_status(msg)
+            self.send_status(msg, newtrades)
         
         return 0 if success else -1
         
@@ -99,10 +149,57 @@ usage: update.py [-cmd:]
                    it is passed directly to the export tool.  Default is 
                    <hedgeit-root>/data
 '''
+    def run_filter_update(self):
+        filtbase = os.path.join(self._basedir,'filters')
+        filtlong = os.path.join(filtbase,'filt_long')
+        filtshort = os.path.join(filtbase,'filt_short')
         
-    def send_status(self, msg):
+        # copy the new tssb_(long|short) files
+        # shutil.copy('tssb_long.csv', os.path.join(filtlong,'tssb_long.csv'))
+        
+        # have to figure out different strategy than compute on our own
+    
+    def run_hedgeit(self):
+        cash = 250000
+        risk = 0.004
+        period = 50
+        stop = 3.0
+        intraDay = True
+        type_ = 'breakout'
+        compounding = False
+        tssb = 'tssb'
+        
+        manifest = 'data/future.csv'
+        sectormap = json.load(open('examples/clenow-best40.json'))
+    
+        feedStart = datetime.datetime(1999,1,1)
+        tradeStart = datetime.datetime(2000,1,1)
+        tradeEnd = datetime.datetime(2013,5,23)
+    
+        InstrumentDb.Instance().load(manifest)
+            
+        plog = 'positions.csv'
+        elog = 'equity.csv'
+        rlog = 'returns.csv'
+        slog = 'summary.csv'
+        
+        ctrl = ClenowController(sectormap, plog, elog, rlog,cash=cash,riskFactor=risk,
+                                period=period,stop=stop,intraDayStop=intraDay,
+                                summaryFile=slog,modelType=type_,compounding=compounding)
+        ctrl.run(feedStart, tradeStart, tradeEnd)
+    
+        tlog = 'trades.csv'
+        ctrl.writeAllTrades(tlog)        
+        ctrl.writeTSSBTrades(tssb)
+        
+        self._alerts = ctrl.get_trade_alerts()
+        self._exitOrders = ctrl.get_last_exit_orders()
+
+        Log.info('There were %d new trades and %d position exit updates' % (len(self._alerts), len(self._exitOrders)))                
+
+    def send_status(self, subj, msg):
         toaddr = '2146794968@txt.att.net'
-        sendmail(toaddr,msg,'')
+        sendmail(toaddr,subj,msg)
 
     def git_commit(self):
         now = datetime.datetime.now()

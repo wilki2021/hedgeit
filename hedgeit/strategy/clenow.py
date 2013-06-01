@@ -164,7 +164,6 @@ class ClenowBreakoutStrategy(Strategy):
                 self.exitPosition(self._positions[sym])
             else:
                 self.getBroker().cancelOrder(self._positions[sym].getEntryOrder())
-        self.getBroker().executeSessionClose()    
         
     def tradeAlerts(self):
         ret = []
