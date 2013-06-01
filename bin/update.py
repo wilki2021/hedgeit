@@ -174,7 +174,7 @@ usage: update.py [-cmd:]
     
         feedStart = datetime.datetime(1999,1,1)
         tradeStart = datetime.datetime(2000,1,1)
-        tradeEnd = datetime.datetime(2013,5,23)
+        tradeEnd = datetime.datetime(2013,12,31)
     
         InstrumentDb.Instance().load(manifest)
             
