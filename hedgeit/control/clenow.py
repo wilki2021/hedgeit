@@ -16,6 +16,7 @@ from hedgeit.analyzer.drawdown import DrawDown
 from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
 from hedgeit.broker.orders import Order
+from alert import Alert
 import numpy
 from hedgeit.common.logger import getLogger
 import time
@@ -246,7 +247,7 @@ class ClenowController(object):
         wf.write('EntryDate,Symbol,Quantity,Action,ImpliedRisk,StopPrice\n')
 
         for alert in self._positionAlerts:
-            wf.write('%s,%s,%d,%s,%0.4f,%0.4f\n' % alert)
+            wf.write('%s' % alert)
         wf.close()
         
         
@@ -268,12 +269,12 @@ class ClenowController(object):
         self._positionAlerts = []  
         for sec in self._runGroups:
             for pos in self._runGroups[sec].strategy().getPositions().itervalues():
-                # create a 6-tuple: (date, symbol, quantity, action, risk, stop)
+                # create a 7-tuple: (date, symbol, desc, quantity, action, risk, stop)
                 entry = pos.getEntryOrder()
                 exit_ = pos.getExitOrder()
-                inst = '%s(%s)' % (entry.getInstrument(), self._db.get(entry.getInstrument()).description())
-                self._positionAlerts.append( ( entry.getExecutionInfo().getDateTime(),
-                                               inst,
+                self._positionAlerts.append( Alert( entry.getExecutionInfo().getDateTime(),
+                                               entry.getInstrument(),
+                                               self._db.get(entry.getInstrument()).description(),
                                                entry.getQuantity(),
                                                Order.Action.action_strs[entry.getAction()],
                                                pos.getImpliedRisk(),

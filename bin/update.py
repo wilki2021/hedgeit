@@ -66,7 +66,7 @@ class UpdateMain(object):
                          
         success = True  
         try:  
-            self.run_updater()
+            #self.run_updater()
             print 'Update successful...'
         except:
             success = False
@@ -77,7 +77,7 @@ class UpdateMain(object):
             
         if success:
             try:  
-                self.run_exporter()
+                #self.run_exporter()
                 print 'Export to %s successful...' % self._datadir
             except:
                 success = False
@@ -93,25 +93,6 @@ class UpdateMain(object):
         tradeup = ''
         if success:
             self.run_hedgeit()
-            # build a status message
-            newtrades = 'New Trades:\n'
-            for alert in self._alerts:
-                order = alert[0]
-                risk  = alert[1]
-                newtrades = newtrades + '%s,%s,%d,%0.4f\n' % \
-                     (order.getInstrument(),
-                     Order.Action.action_strs[order.getAction()],
-                     order.getQuantity(),
-                     risk)
-            print newtrades
-            tradeup = 'Trade Updates:\n'
-            for exit in self._exitOrders:
-                tradeup = tradeup + '%s,%s,%d,%0.5f\n' % \
-                    (exit.getInstrument(),
-                     Order.Action.action_strs[exit.getAction()],
-                     exit.getQuantity(),
-                     exit.getStopPrice())
-            print tradeup
             
         if success:
             # we need to run the TSSB setup utility to install the
@@ -129,6 +110,7 @@ class UpdateMain(object):
             self.run_filter_update()
                 
         msg = 'Data update successful' if success else 'Data update failed'
+        newtrades = ''
         if do_msg:
             self.send_status(msg, newtrades)
         
@@ -160,11 +142,10 @@ usage: update.py [-cmd:]
         shortAlerts = []
         longAlerts = []
         for alert in self._alerts:
-            order = alert[0]
-            if order.getAction() == Order.Action.BUY:
-                longAlerts.append(order)
+            if alert[3] == 'Buy':
+                longAlerts.append(alert)
             else:
-                shortAlerts.append(order)
+                shortAlerts.append(alert)
                 
         if len(longAlerts):
             filtlong = os.path.join(filtbase,'filt_long')
@@ -204,11 +185,14 @@ usage: update.py [-cmd:]
     
     def check_filter(self,alerts, filtparse, filtdb, model):
         # first we need the threshold for the model
+        
         run = filtparse.tssb_run()
-        wfstats = run.walkforward_summ()[model]
-        # TODO - need to update AuditParser to grab thresholds
-        #thresh = wfstats.long_threshold
-        pass
+        modeliter = run.folds()[0].models()[model]
+        stats = modeliter.insample_stats()
+        thresh = stats.hi_thresh
+        
+        for alert in alerts:
+            date = alert[0].strftime("%Y%m%d")
     
     def run_hedgeit(self):
         cash = 250000
@@ -243,10 +227,9 @@ usage: update.py [-cmd:]
         ctrl.writeAllTrades(tlog)        
         ctrl.writeTSSBTrades(tssb)
         
-        self._alerts = ctrl.get_trade_alerts()
-        self._exitOrders = ctrl.get_last_exit_orders()
+        self._alerts = ctrl.get_position_alerts()
 
-        Log.info('There were %d new trades and %d position exit updates' % (len(self._alerts), len(self._exitOrders)))                
+        Log.info('There are %d position updates' % (len(self._alerts)))                
 
     def send_status(self, subj, msg):
         toaddr = '2146794968@txt.att.net'

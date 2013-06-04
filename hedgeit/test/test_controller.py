@@ -65,7 +65,7 @@ class Test(unittest.TestCase):
         # now check the last open trades 
         pos_alerts = ctrl.get_position_alerts()
         self.assertEqual(len(pos_alerts),1)
-        self.assertEqual(pos_alerts[0][5],1476.35)
+        self.assertEqual(pos_alerts[0].stop,1476.35)
             
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
