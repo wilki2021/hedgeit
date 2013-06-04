@@ -128,7 +128,7 @@ def main(argv=None):
         ctrl.writeTSSBTrades(tssb)
     
     alog = 'alerts.csv'
-    ctrl.writeTradeAlerts(alog)
+    ctrl.writePositionAlerts(alog)
     
     Log.info('Net return     :  %0.1f%%' % (ctrl.net_return() * 100.0))
     Log.info('Max drawdown   : -%0.1f%%' % (ctrl.drawdown().getMaxDrawDown() * 100.0))

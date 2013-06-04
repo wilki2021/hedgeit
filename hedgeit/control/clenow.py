@@ -271,8 +271,9 @@ class ClenowController(object):
                 # create a 6-tuple: (date, symbol, quantity, action, risk, stop)
                 entry = pos.getEntryOrder()
                 exit_ = pos.getExitOrder()
+                inst = '%s(%s)' % (entry.getInstrument(), self._db.get(entry.getInstrument()).description())
                 self._positionAlerts.append( ( entry.getExecutionInfo().getDateTime(),
-                                               entry.getInstrument(),
+                                               inst,
                                                entry.getQuantity(),
                                                Order.Action.action_strs[entry.getAction()],
                                                pos.getImpliedRisk(),
