@@ -63,9 +63,9 @@ class Test(unittest.TestCase):
         os.remove(slog)
 
         # now check the last open trades 
-        last_trades = ctrl.get_last_exit_orders()
-        self.assertEqual(len(last_trades),1)
-        self.assertEqual(last_trades[0].getStopPrice(),1476.35)
+        pos_alerts = ctrl.get_position_alerts()
+        self.assertEqual(len(pos_alerts),1)
+        self.assertEqual(pos_alerts[0][5],1476.35)
             
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

@@ -144,34 +144,20 @@ class ClenowBreakoutStrategy(Strategy):
                         if bar.close() < self._tradeLow[sym]:
                             self._tradeLow[sym] = bar.close()
                         self.exitPosition(self._positions[sym], stopPrice=self._tradeLow[sym]+self._stop*bar.atr(), goodTillCanceled=True)
-         
-    def getExitOrders(self):
-        ret = []
-        for sym in self._positions:
-            if self._positions[sym].entryFilled():
-                ret.append(self._positions[sym].getExitOrder())
-            
-        return ret
-            
+      
     def exitPositions(self):
         for sym in self._positions:
+            self.exitPosition(self._positions[sym])
+
             # we have two cases to detect/handle.  If the position has been entered
             # then we want to enter a new market order to close it so that the trade
             # reflects the proper p/l.  If the position has not been entered then 
             # this is a new trade that needs to be executed on the next bar and we
             # don't actually want to report it as a trade, but rather a trade alert
-            if self._positions[sym].entryFilled():
-                self.exitPosition(self._positions[sym])
-            else:
-                self.getBroker().cancelOrder(self._positions[sym].getEntryOrder())
-        
-    def tradeAlerts(self):
-        ret = []
-        for sym in self._positions:
-            if not self._positions[sym].entryFilled():
-                ret.append((self._positions[sym].getEntryOrder(), self._positions[sym].getImpliedRisk()))
-        return ret  
-        
+            #if self._positions[sym].entryFilled():
+            #    self.exitPosition(self._positions[sym])
+            #else:
+            #    self.getBroker().cancelOrder(self._positions[sym].getEntryOrder())        
         
 class ClenowBreakoutNoIntraDayStopStrategy(ClenowBreakoutStrategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\

@@ -101,8 +101,7 @@ class ClenowController(object):
         
         self._dd = DrawDown()
         self._dd.attached(self)
-        self._lastExitOrders = []
-        self._tradeAlerts = []
+        self._positionAlerts = []  
         
     def getBroker(self):
         return self._broker
@@ -122,11 +121,8 @@ class ClenowController(object):
     def get_trade_profit(self):
         return self._tradeProfit
     
-    def get_last_exit_orders(self):
-        return self._lastExitOrders
-
-    def get_trade_alerts(self):
-        return self._tradeAlerts
+    def get_position_alerts(self):
+        return self._positionAlerts
         
     def run(self, feedStart, tradeStart, tradeEnd):
         # sanity check our parms
@@ -199,11 +195,19 @@ class ClenowController(object):
         
         logger.info('Total Trades    : %d' % len(alltrades))   
         logger.info('Total Net Profit: $%0.2f' % self._tradeProfit)   
-        logger.info('Total Avg Profit: $%0.2f' % (self._tradeProfit / len(alltrades)))   
-        logger.info('Winning Trades  : %d (%0.1f%%)' % (wins, wins * 100.0 / len(alltrades)))   
-        logger.info('Average Winner  : $%0.2f (%0.1f%%)' % (winamt/ wins, (winamt * 100.0/winmargin)))   
-        logger.info('Losing   Trades : %d (%0.1f%%)' % (len(alltrades) - wins,(len(alltrades) - wins) * 100.0/len(alltrades)))   
-        logger.info('Average Loser   : $%0.2f (%0.1f%%)' % ((self._tradeProfit - winamt) / (len(alltrades) - wins),(self._tradeProfit - winamt) *100.0/losemargin))   
+        tot_avg = (self._tradeProfit / len(alltrades)) if len(alltrades) else 0.0
+        logger.info('Total Avg Profit: $%0.2f' % tot_avg)   
+        winrate = wins * 100.0 / len(alltrades) if len(alltrades) else 0.0
+        logger.info('Winning Trades  : %d (%0.1f%%)' % (wins, winrate))
+        winavg = winamt/ wins if wins else 0.0
+        winmarg = (winamt * 100.0/winmargin) if winmargin else 0.0
+        logger.info('Average Winner  : $%0.2f (%0.1f%%)' % (winavg, winmarg))   
+        numloss = len(alltrades) - wins
+        loserate = numloss * 100.0/len(alltrades) if len(alltrades) else 0.0
+        logger.info('Losing   Trades : %d (%0.1f%%)' % (numloss,loserate)) 
+        loseavg = (self._tradeProfit - winamt) / numloss if numloss else 0.0
+        losemarg = (self._tradeProfit - winamt) *100.0/losemargin if losemargin else 0.0
+        logger.info('Average Loser   : $%0.2f (%0.1f%%)' % (loseavg,losemarg))   
         
     def writeTSSBTrades(self, filebase):
         # get one list with all trades
@@ -233,39 +237,16 @@ class ClenowController(object):
                          t.getExitPrice() - t.getEntryPrice(),
                          t.getNetProfit(0) / t.getInitialMargin(),
                          t.getNetProfit(0) / self._startingCash * 100.0))
-            
-        # now write out any new trades 
-        for alert in self._tradeAlerts:
-            t = alert[0]
-            fp = sf if t.getAction() == Order.Action.SELL_SHORT else lf
-
-            # TODO - going to have to figure out something more sophisticated to
-            # get the correct date for the new trade.  It could be the case that
-            # the current bars does not include data for the instrument in question
-            tradeSize = -t.getQuantity() if t.getAction() == Order.Action.SELL_SHORT else t.getQuantity()
-            fp.write('%s,%s,%d,%0.3f,%0.5f,%0.5f\n' % 
-                        (self._feed.get_current_bars().datetime().strftime("%Y%m%d"),
-                         t.getInstrument(),
-                         tradeSize,
-                         0.0,
-                         0.0,
-                         0.0))
-            
+                        
         sf.close()
         lf.close()         
 
-    def writeTradeAlerts(self, filename):            
+    def writePositionAlerts(self, filename):            
         wf = open(filename,"w")
-        wf.write('Symbol,Quantity,Action,ImpliedRisk\n')
+        wf.write('EntryDate,Symbol,Quantity,Action,ImpliedRisk,StopPrice\n')
 
-        for alert in self._tradeAlerts:
-            order = alert[0]
-            risk = alert[1]
-            wf.write('%s,%d,%s,%0.4f\n' %
-                     (order.getInstrument(),
-                     order.getQuantity(),
-                     Order.Action.action_strs[order.getAction()],
-                     risk))
+        for alert in self._positionAlerts:
+            wf.write('%s,%s,%d,%s,%0.4f,%0.4f\n' % alert)
         wf.close()
         
         
@@ -276,29 +257,35 @@ class ClenowController(object):
         self._print_sector_positions(datetime)
         
     def _handle_trade_end(self, datetime):
+        # first we need new positions to be taken if executed after
+        # market close on last bar
+        self.getBroker().executeSessionClose()    
+        
         # want to report our positions before exiting them
         self._print_sector_positions(datetime)
 
-        # also need to grab current exit orders to report stop prices        
-        self._lastExitOrders = []
+        # now we want to grab position information      
+        self._positionAlerts = []  
         for sec in self._runGroups:
-            self._lastExitOrders.extend(self._runGroups[sec].strategy().getExitOrders())
-        self._lastExitOrders = sorted(self._lastExitOrders, key=lambda x: x.getInstrument(), reverse=True)
-        
+            for pos in self._runGroups[sec].strategy().getPositions().itervalues():
+                # create a 6-tuple: (date, symbol, quantity, action, risk, stop)
+                entry = pos.getEntryOrder()
+                exit_ = pos.getExitOrder()
+                self._positionAlerts.append( ( entry.getExecutionInfo().getDateTime(),
+                                               entry.getInstrument(),
+                                               entry.getQuantity(),
+                                               Order.Action.action_strs[entry.getAction()],
+                                               pos.getImpliedRisk(),
+                                               exit_.getStopPrice() ) )
+                        
         # exit all positions - this needs to happen before we report final equity and returns
         for sec in self._runGroups:
             self._runGroups[sec].strategy().exitPositions()
+            
         # we must call executeSessionClose once after the call to exitPositions for 
         # each of our rungroup strategy instances.  They executes the market orders
         # to close open positions
         self.getBroker().executeSessionClose()    
-
-        # get one list with all trade alerts
-        self._tradeAlerts = []
-        for sec in self._runGroups:
-            self._tradeAlerts.extend(self._runGroups[sec].strategy().tradeAlerts())
-        if len(self._tradeAlerts):
-            logger.info('There are %d new trade alerts' % len(self._tradeAlerts))
 
         self._dd.beforeOnBars(self)
         self._print_sector_equity(datetime)

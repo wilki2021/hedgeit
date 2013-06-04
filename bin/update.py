@@ -20,6 +20,7 @@ import json
 from hedgeit.common.logger import getLogger
 from hedgeit.broker.orders import Order
 from tssbutil.pdb import DbParser
+from tssbutil.paudit import AuditParser
 
 Log = getLogger(__name__)
 
@@ -30,8 +31,8 @@ class UpdateMain(object):
         self._dataconvdir = 'c:/Program Files (x86)/Premium Data Converter'
         # we know this script is in hedgeit/bin.  We need to create the
         # path to hedgeit/data for the data update
-        bindir = os.path.dirname(os.path.abspath(__file__))
-        self._basedir = os.path.split(bindir)[0]
+        self._bindir = os.path.dirname(os.path.abspath(__file__))
+        self._basedir = os.path.split(self._bindir)[0]
         self._datadir = os.path.join(self._basedir,'data')
         self._alerts = []
         self._exitOrders = []
@@ -123,7 +124,8 @@ class UpdateMain(object):
             else:
                 print 'TSSB data updates installed successfully'
             
-        if success:
+        if success and len(self._alerts):
+            print 'Running filter for new trades'
             self.run_filter_update()
                 
         msg = 'Data update successful' if success else 'Data update failed'
@@ -151,13 +153,62 @@ usage: update.py [-cmd:]
 '''
     def run_filter_update(self):
         filtbase = os.path.join(self._basedir,'filters')
-        filtlong = os.path.join(filtbase,'filt_long')
-        filtshort = os.path.join(filtbase,'filt_short')
         
-        # copy the new tssb_(long|short) files
-        # shutil.copy('tssb_long.csv', os.path.join(filtlong,'tssb_long.csv'))
-        
-        # have to figure out different strategy than compute on our own
+        # if we get here we know that we have new trades to pass through the
+        # filter.  First, separate the trades into short and long.  It is 
+        # possible that we get both long and short trades for one update
+        shortAlerts = []
+        longAlerts = []
+        for alert in self._alerts:
+            order = alert[0]
+            if order.getAction() == Order.Action.BUY:
+                longAlerts.append(order)
+            else:
+                shortAlerts.append(order)
+                
+        if len(longAlerts):
+            filtlong = os.path.join(filtbase,'filt_long')
+            
+            # copy the new tssb_(long|short) files
+            shutil.copy('tssb_long.csv', os.path.join(filtlong,'tssb_long.csv'))
+     
+            cwd = os.getcwd()       
+            os.chdir(filtlong)
+            cmd = 'python %s/build_ind_dbs.py TREND_VOLATILITY3.txt db'
+            os.system(cmd)
+            
+            run_tssb(os.path.join(filtlong,"preselect_test.txt"))
+            os.rename('AUDIT.LOG','pselect_test_audit.log')
+            parse = AuditParser('pselect_test_audit.log')
+            db = DbParser('FILTLONG.DAT')
+            self.check_filter(longAlerts, parse, db, 'COMM5')
+            os.chdir(cwd)
+            
+        if len(shortAlerts):
+            filtshort = os.path.join(filtbase,'filt_short')
+            
+            # copy the new tssb_(long|short) files
+            shutil.copy('tssb_short.csv', os.path.join(filtshort,'tssb_short.csv'))
+            
+            cwd = os.getcwd()       
+            os.chdir(filtshort)
+            cmd = 'python %s/build_ind_dbs.py TREND_VOLATILITY3.txt db'
+            os.system(cmd)
+            
+            run_tssb(os.path.join(filtlong,"preselect_test.txt"))
+            os.rename('AUDIT.LOG','pselect_test_audit.log')
+            parse = AuditParser('pselect_test_audit.log')
+            db = DbParser('FILTSHORT.DAT')
+            self.check_filter(shortAlerts, parse, db, 'COMM5')
+            os.chdir(cwd)
+    
+    def check_filter(self,alerts, filtparse, filtdb, model):
+        # first we need the threshold for the model
+        run = filtparse.tssb_run()
+        wfstats = run.walkforward_summ()[model]
+        # TODO - need to update AuditParser to grab thresholds
+        #thresh = wfstats.long_threshold
+        pass
     
     def run_hedgeit(self):
         cash = 250000
