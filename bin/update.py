@@ -91,10 +91,6 @@ class UpdateMain(object):
                 print tb
             sys.stdout.flush()
 
-        if success and do_commit:
-            self.git_commit()
-            pass
-        
         if success:
             self.run_hedgeit()
             
@@ -128,7 +124,14 @@ class UpdateMain(object):
                          alert.stop)
             print 'Active Trade Alerts:'
             print activetrades                    
-                
+
+        # do this last so that we pick up any updates that occur during the
+        # filter step (in particular we are committing the tssb_long/short
+        # trade files
+        if success and do_commit:
+            self.git_commit()
+            pass
+                        
         msg = 'Data update successful' if success else 'Data update failed'
         if do_msg:
             self.send_status(msg, activetrades)
