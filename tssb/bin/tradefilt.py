@@ -356,6 +356,7 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
         self.run_tssb_wrapper("preselect.txt",log)
         ret = AuditParser(log)
 
+        varmap2 = self._varmap
         if self._with_val:
             fold = ret.tssbrun().folds()[0]
             ranked = sorted(fold.models().itervalues(), key=lambda x: x.oosample_stats().long_only_imp, reverse=True)
@@ -365,9 +366,9 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
                 # we know that the model name is FILTLONGN where N=[1..5] and further
                 # that <GROUPN> corresponds to FILTLONGN from the previous step
                 fromkey = '<GROUP%s>' % modeliter.name()[-1]
-                self._varmap[groupname] = self._varmap[fromkey]
+                varmap2[groupname] = self._varmap[fromkey]
                     
-            self.apply_script_template(os.path.join("..","..",'preselect_test.txt'), 'preselect_test.txt', self._varmap)
+            self.apply_script_template(os.path.join("..","..",'preselect_test.txt'), 'preselect_test.txt', varmap2)
             log = 'pselect_test_audit.log'
             self.run_tssb_wrapper("preselect_test.txt",log)
             ret = AuditParser(log)    

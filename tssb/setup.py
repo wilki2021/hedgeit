@@ -53,15 +53,19 @@ class Main(object):
             mat = symbol.match(f)
             if mat:
                 targname = '%s.csv' % mat.group(1)
+                srcfile = os.path.join(srcdata,f)
                 targfile = os.path.join(datadir,targname)
-                shutil.copy(os.path.join(srcdata,f),targfile)
+                shutil.copy(srcfile,targfile)
                 
                 # we need to replace some negative numbers since TSSB
                 # can't handle them.  There are several contracts with 
-                # negatives but the only one we are using is RB2
+                # negatives we only deal with a few.  
                 if targname == 'RB2.csv':
                     cmd = 'sed -i \'s/\-[\.0-9]*/0\.0001/g\' %s' % targfile
                     os.system(cmd)
+                    
+                if targname == 'GO.csv':
+                    self.prune_past_negatives(srcfile,targfile)
             
     def usage(self):
         print '''
@@ -76,7 +80,30 @@ usage: setup.py [-d <dir>]
         -d <dir> - Path to install to
 '''
     
+    def prune_past_negatives(self,src,dest):
+        # first scan to find the most recent row with no subsequent negatives
+        fsrc = open(src)
+        lastdate = None
+        for line in fsrc.readlines():
+            if line.find('-') != -1:
+                lastdate = None
+            elif not lastdate:
+                lastdate = line[0:line.find(',')]
+        fsrc.close()
         
+        fsrc = open(src)
+        fdest = open(dest,'w')
+        started = False
+        for line in fsrc.readlines():
+            if started:
+                fdest.write(line)
+            else:
+                if line.find(lastdate) != -1:
+                    started = True
+                    fdest.write(line)
+        fsrc.close()
+        fdest.close()
+            
 if __name__ == '__main__':
     s = Main()
     sys.exit(s.main())

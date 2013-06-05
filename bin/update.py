@@ -108,11 +108,29 @@ class UpdateMain(object):
         if success and len(self._alerts):
             print 'Running filter for new trades'
             self.run_filter_update()
+            activetrades = ''
+            afile = open('alerts.csv','w')
+            for alert in self._alerts:  
+                afile.write('%s\n' % alert)              
+                if alert.execute:
+                    if activetrades:
+                        activetrades = activetrades + '\n'
+                    activetrades = activetrades + \
+                        '%s %s %d %s(%s),risk(%0.0f),stop(%0.4f)' % \
+                        (alert.datetime.strftime('%Y%m%d'),
+                         alert.action,
+                         alert.quantity,
+                         alert.symbol,
+                         alert.description,
+                         alert.risk,
+                         alert.stop)
+            afile.close()
+            print 'Active Trade Alerts:'
+            print activetrades                    
                 
         msg = 'Data update successful' if success else 'Data update failed'
-        newtrades = ''
         if do_msg:
-            self.send_status(msg, newtrades)
+            self.send_status(msg, activetrades)
         
         return 0 if success else -1
         
@@ -136,63 +154,77 @@ usage: update.py [-cmd:]
     def run_filter_update(self):
         filtbase = os.path.join(self._basedir,'filters')
         
-        # if we get here we know that we have new trades to pass through the
-        # filter.  First, separate the trades into short and long.  It is 
-        # possible that we get both long and short trades for one update
-        shortAlerts = []
-        longAlerts = []
+        # update our trade filters long first
+        filtlong = os.path.join(filtbase,'filt_long')
+        
+        # copy the new tssb_(long|short) files
+        shutil.copy('tssb_long.csv', os.path.join(filtlong,'tssb_long.csv'))
+ 
+        cwd = os.getcwd()       
+        os.chdir(filtlong)
+        cmd = 'python %s/build_ind_dbs.py TREND_VOLATILITY3.txt db' % os.path.join(self._basedir,'tssb','bin')
+        os.system(cmd)
+        
+        self.run_tssb_wrapper(os.path.join(filtlong,"preselect_test.txt"),'pselect_test_audit.log')
+        longparse = AuditParser('pselect_test_audit.log')
+        longdb = DbParser('FILTLONG.DAT')
+        os.chdir(cwd)
+            
+        # then short...
+        filtshort = os.path.join(filtbase,'filt_short')
+        
+        # copy the new tssb_(long|short) files
+        shutil.copy('tssb_short.csv', os.path.join(filtshort,'tssb_short.csv'))
+        
+        cwd = os.getcwd()       
+        os.chdir(filtshort)
+        cmd = 'python %s/build_ind_dbs.py TREND_VOLATILITY3.txt db' % os.path.join(self._basedir,'tssb','bin')
+        os.system(cmd)
+        
+        self.run_tssb_wrapper(os.path.join(filtshort,"preselect_test.txt"),'pselect_test_audit.log')
+        shortparse = AuditParser('pselect_test_audit.log')
+        shortdb = DbParser('FILTSHORT.DAT')
+        os.chdir(cwd)
+
         for alert in self._alerts:
-            if alert[3] == 'Buy':
-                longAlerts.append(alert)
+            # model values are hard-coded for the year based on the tradefilt run
+            if alert.action == 'BUY':
+                parse = longparse
+                db = longdb
+                model = 'COMM6'
             else:
-                shortAlerts.append(alert)
-                
-        if len(longAlerts):
-            filtlong = os.path.join(filtbase,'filt_long')
-            
-            # copy the new tssb_(long|short) files
-            shutil.copy('tssb_long.csv', os.path.join(filtlong,'tssb_long.csv'))
-     
-            cwd = os.getcwd()       
-            os.chdir(filtlong)
-            cmd = 'python %s/build_ind_dbs.py TREND_VOLATILITY3.txt db'
-            os.system(cmd)
-            
-            run_tssb(os.path.join(filtlong,"preselect_test.txt"))
-            os.rename('AUDIT.LOG','pselect_test_audit.log')
-            parse = AuditParser('pselect_test_audit.log')
-            db = DbParser('FILTLONG.DAT')
-            self.check_filter(longAlerts, parse, db, 'COMM5')
-            os.chdir(cwd)
-            
-        if len(shortAlerts):
-            filtshort = os.path.join(filtbase,'filt_short')
-            
-            # copy the new tssb_(long|short) files
-            shutil.copy('tssb_short.csv', os.path.join(filtshort,'tssb_short.csv'))
-            
-            cwd = os.getcwd()       
-            os.chdir(filtshort)
-            cmd = 'python %s/build_ind_dbs.py TREND_VOLATILITY3.txt db'
-            os.system(cmd)
-            
-            run_tssb(os.path.join(filtlong,"preselect_test.txt"))
-            os.rename('AUDIT.LOG','pselect_test_audit.log')
-            parse = AuditParser('pselect_test_audit.log')
-            db = DbParser('FILTSHORT.DAT')
-            self.check_filter(shortAlerts, parse, db, 'COMM5')
-            os.chdir(cwd)
+                parse = shortparse
+                db = shortdb
+                model = 'COMM5'
+            self.check_filter(alert, parse, db, model)
+
+    def run_tssb_wrapper(self, script, log):
+        if os.path.exists('AUDIT.LOG'):
+            os.remove('AUDIT.LOG')
+
+        run_tssb(script)
     
-    def check_filter(self,alerts, filtparse, filtdb, model):
+        if not os.path.exists('AUDIT.LOG'):
+            raise Exception("TSSB did not appear to write an AUDIT.log file!!")
+        
+        if os.path.exists(log):
+            os.remove(log)
+        os.rename('AUDIT.LOG',log)
+            
+    def check_filter(self,alert, filtparse, filtdb, model):
         # first we need the threshold for the model
         
-        run = filtparse.tssb_run()
+        run = filtparse.tssbrun()
         modeliter = run.folds()[0].models()[model]
         stats = modeliter.insample_stats()
         thresh = stats.hi_thresh
         
-        for alert in alerts:
-            date = alert[0].strftime("%Y%m%d")
+        date = alert.datetime.strftime("%Y%m%d")
+        val = filtdb.get_value(date,alert.symbol,model)            
+        execute = True if val >= thresh else False
+        alert.filter_value = val
+        alert.filter_thresh = thresh
+        alert.execute = execute            
     
     def run_hedgeit(self):
         cash = 250000
@@ -227,12 +259,12 @@ usage: update.py [-cmd:]
         ctrl.writeAllTrades(tlog)        
         ctrl.writeTSSBTrades(tssb)
         
-        self._alerts = ctrl.get_position_alerts()
+        self._alerts = sorted(ctrl.get_position_alerts(), key=lambda x: x.datetime, reverse=True)
 
         Log.info('There are %d position updates' % (len(self._alerts)))                
 
     def send_status(self, subj, msg):
-        toaddr = '2146794968@txt.att.net'
+        toaddr = '2146794968@mms.att.net'
         sendmail(toaddr,subj,msg)
 
     def git_commit(self):

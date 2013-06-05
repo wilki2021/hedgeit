@@ -76,7 +76,7 @@ class ClenowBreakoutStrategy(Strategy):
             ret = 1
         else:
             ret = round(target_quant)
-        return (ret, ret * atr * self._db.get(instrument).point_value() / self.getBroker().getCash())
+        return (ret, ret * atr * self._db.get(instrument).point_value())
         
     def enterLong(self, instrument, quantity, impliedRisk, limit=None, stop=None, goodTillCanceled = False):
         ret = Strategy.enterLong(self, instrument, quantity, limit, stop, goodTillCanceled)
@@ -135,8 +135,9 @@ class ClenowBreakoutStrategy(Strategy):
                         self._tradeLow[sym] = bar.close()
                         self.exitPosition(self._positions[sym], stopPrice=self._tradeLow[sym]+self._stop*bar.atr(), goodTillCanceled=True)
                 elif self._positions.has_key(sym):
+                    pos = self._positions[sym]
                     # we need to adjust our exit daily 
-                    if self._positions[sym].isLong():
+                    if pos.isLong():
                         if bar.close() > self._tradeHigh[sym]:
                             self._tradeHigh[sym] = bar.close()
                         self.exitPosition(self._positions[sym], stopPrice=self._tradeHigh[sym]-self._stop*bar.atr(), goodTillCanceled=True)
@@ -144,6 +145,8 @@ class ClenowBreakoutStrategy(Strategy):
                         if bar.close() < self._tradeLow[sym]:
                             self._tradeLow[sym] = bar.close()
                         self.exitPosition(self._positions[sym], stopPrice=self._tradeLow[sym]+self._stop*bar.atr(), goodTillCanceled=True)
+                    # update position implied risk
+                    self._positions[sym].setImpliedRisk(bar.atr() * pos.getQuantity() * self._db.get(pos.getInstrument()).point_value() )
       
     def exitPositions(self):
         for sym in self._positions:

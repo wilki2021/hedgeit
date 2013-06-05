@@ -23,15 +23,21 @@ class Alert(object):
         self.action = action
         self.risk = risk
         self.stop = stop
+        self.filter_value = 0.0
+        self.filter_thresh = 0.0
+        self.execute = False
         
     def __str__(self):
-        ret = '%s,%s,%s,%d,%s,%0.4f,%0.4f\n' % (self.datetime,
+        ret = '%s,%s,%s,%d,%s,%0.4f,%0.4f,%0.5f,%0.5f,%s' % (self.datetime.strftime('%Y%m%d'),
                                                 self.symbol,
                                                 self.description,
                                                 self.quantity,
                                                 self.action,
                                                 self.risk,
-                                                self.stop)
+                                                self.stop,
+                                                self.filter_value,
+                                                self.filter_thresh,
+                                                self.execute)
         return ret
         
         
