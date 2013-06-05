@@ -13,6 +13,7 @@ import shutil
 import sys
 import json
 import numpy
+import copy
 
 class SimMain(object):
     
@@ -356,8 +357,8 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
         self.run_tssb_wrapper("preselect.txt",log)
         ret = AuditParser(log)
 
-        varmap2 = self._varmap
         if self._with_val:
+            varmap2 = copy.deepcopy(self._varmap)
             fold = ret.tssbrun().folds()[0]
             ranked = sorted(fold.models().itervalues(), key=lambda x: x.oosample_stats().long_only_imp, reverse=True)
             for i in range(1,4):
@@ -367,7 +368,7 @@ usage: tradefilt.py [options] <run-name> <year-start> <year-end>
                 # that <GROUPN> corresponds to FILTLONGN from the previous step
                 fromkey = '<GROUP%s>' % modeliter.name()[-1]
                 varmap2[groupname] = self._varmap[fromkey]
-                    
+            
             self.apply_script_template(os.path.join("..","..",'preselect_test.txt'), 'preselect_test.txt', varmap2)
             log = 'pselect_test_audit.log'
             self.run_tssb_wrapper("preselect_test.txt",log)

@@ -18,7 +18,6 @@ from hedgeit.control.clenow import ClenowController
 from hedgeit.feeds.db import InstrumentDb
 import json
 from hedgeit.common.logger import getLogger
-from hedgeit.broker.orders import Order
 from tssbutil.pdb import DbParser
 from tssbutil.paudit import AuditParser
 
@@ -39,7 +38,7 @@ class UpdateMain(object):
 
     def main(self,argv=None):
         try:
-            opts, args = getopt.getopt(sys.argv[1:], "cmd:", [])
+            opts, args = getopt.getopt(sys.argv[1:], "cmnd:", [])
         except getopt.GetoptError as err:
             # print help information and exit:
             print str(err) # will print something like "option -a not recognized"
@@ -48,6 +47,7 @@ class UpdateMain(object):
     
         do_commit = False
         do_msg = False
+        do_update = True
         
         for o, a in opts:
             if o == '-c':
@@ -56,6 +56,9 @@ class UpdateMain(object):
             elif o == '-m':
                 do_msg = True
                 print 'Will send status SMS message'
+            elif o == '-n':
+                do_update = False
+                print 'Will bypass data update'
             elif o == '-d':
                 self._datadir = a
                 print 'Will export to directory %s' % self._datadir
@@ -65,9 +68,10 @@ class UpdateMain(object):
                 sys.exit(1)
                          
         success = True  
-        try:  
-            self.run_updater()
-            print 'Update successful...'
+        try:
+            if do_update:  
+                self.run_updater()
+                print 'Update successful...'
         except:
             success = False
             print 'Update had errors...'
@@ -76,9 +80,10 @@ class UpdateMain(object):
         sys.stdout.flush()
             
         if success:
-            try:  
-                self.run_exporter()
-                print 'Export to %s successful...' % self._datadir
+            try:
+                if do_update:  
+                    self.run_exporter()
+                    print 'Export to %s successful...' % self._datadir
             except:
                 success = False
                 print 'Export had errors...'
@@ -90,7 +95,6 @@ class UpdateMain(object):
             self.git_commit()
             pass
         
-        tradeup = ''
         if success:
             self.run_hedgeit()
             
@@ -109,9 +113,7 @@ class UpdateMain(object):
             print 'Running filter for new trades'
             self.run_filter_update()
             activetrades = ''
-            afile = open('alerts.csv','w')
             for alert in self._alerts:  
-                afile.write('%s\n' % alert)              
                 if alert.execute:
                     if activetrades:
                         activetrades = activetrades + '\n'
@@ -124,7 +126,6 @@ class UpdateMain(object):
                          alert.description,
                          alert.risk,
                          alert.stop)
-            afile.close()
             print 'Active Trade Alerts:'
             print activetrades                    
                 
@@ -162,6 +163,10 @@ usage: update.py [-cmd:]
  
         cwd = os.getcwd()       
         os.chdir(filtlong)
+        # important to clear any previous db directory because TSSB doesn't
+        # overwrite database files (and silently :()
+        if os.path.exists('db'):
+            shutil.rmtree('db')
         cmd = 'python %s/build_ind_dbs.py TREND_VOLATILITY3.txt db' % os.path.join(self._basedir,'tssb','bin')
         os.system(cmd)
         
@@ -178,6 +183,8 @@ usage: update.py [-cmd:]
         
         cwd = os.getcwd()       
         os.chdir(filtshort)
+        if os.path.exists('db'):
+            shutil.rmtree('db')
         cmd = 'python %s/build_ind_dbs.py TREND_VOLATILITY3.txt db' % os.path.join(self._basedir,'tssb','bin')
         os.system(cmd)
         
@@ -234,7 +241,6 @@ usage: update.py [-cmd:]
         intraDay = True
         type_ = 'breakout'
         compounding = False
-        tssb = 'tssb'
         
         manifest = 'data/future.csv'
         sectormap = json.load(open('examples/clenow-best40.json'))
@@ -255,9 +261,9 @@ usage: update.py [-cmd:]
                                 summaryFile=slog,modelType=type_,compounding=compounding)
         ctrl.run(feedStart, tradeStart, tradeEnd)
     
-        tlog = 'trades.csv'
-        ctrl.writeAllTrades(tlog)        
-        ctrl.writeTSSBTrades(tssb)
+        ctrl.writeAllTrades('trades.csv')        
+        ctrl.writeTSSBTrades('tssb')
+        ctrl.writePositionAlerts('alerts.csv')
         
         self._alerts = sorted(ctrl.get_position_alerts(), key=lambda x: x.datetime, reverse=True)
 
