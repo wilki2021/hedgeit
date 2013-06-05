@@ -66,7 +66,7 @@ class UpdateMain(object):
                          
         success = True  
         try:  
-            #self.run_updater()
+            self.run_updater()
             print 'Update successful...'
         except:
             success = False
@@ -77,7 +77,7 @@ class UpdateMain(object):
             
         if success:
             try:  
-                #self.run_exporter()
+                self.run_exporter()
                 print 'Export to %s successful...' % self._datadir
             except:
                 success = False
