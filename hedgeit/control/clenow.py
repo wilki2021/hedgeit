@@ -246,8 +246,10 @@ class ClenowController(object):
         wf = open(filename,"w")
         wf.write('EntryDate,Symbol,Quantity,Action,ImpliedRisk,StopPrice\n')
 
-        for alert in self._positionAlerts:
-            wf.write('%s' % alert)
+        alerts = sorted(self._positionAlerts, key=lambda x: x.datetime)
+
+        for alert in alerts:
+            wf.write('%s\n' % alert)
         wf.close()
         
         

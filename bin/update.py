@@ -148,6 +148,7 @@ usage: update.py [-cmd:]
         None
 
     Options:
+        -n       - skip the data update and export steps (default do update)
         -c       - commit data updates to git (default OFF)
         -m       - send status SMS message (default OFF)
         -d <dir> - export to the specified directory.  Note that it must
@@ -201,7 +202,7 @@ usage: update.py [-cmd:]
             if alert.action == 'BUY':
                 parse = longparse
                 db = longdb
-                model = 'COMM6'
+                model = 'COMM5'
             else:
                 parse = shortparse
                 db = shortdb
