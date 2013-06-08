@@ -8,6 +8,7 @@ import unittest
 import datetime
 from hedgeit.feeds.bar import Bar
 from hedgeit.feeds.bars import Bars
+import numpy
 
 class Test(unittest.TestCase):
 
@@ -69,6 +70,9 @@ class Test(unittest.TestCase):
         self.assertEqual(b.foo2(), 99.36)
         with self.assertRaisesRegexp(Exception, 'Bar has no user-defined'):
             b.Close()
+        self.assertFalse(b.has_nan())
+        b.set_user_defined('foonan', numpy.nan)
+        self.assertTrue(b.has_nan())
 
     def testBarsBasic(self):
         b1 = Bar(datetime.datetime(2013,1,23),10.0, 40.0, 5.0, 25.0)

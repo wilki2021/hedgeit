@@ -238,30 +238,9 @@ class Strategy(object):
         The default implementation raises an Exception.
         
         onBars is where the user will typically implement the main bulk of
-        the strategy.  The bars structure passed is a list of maps where 
-        there is exactly one list per workspace that was added to the strategy
-        and each map contains the values for the period with the bars 
-        represent.  The Strategy class ensures that the bars are for the
-        same period to handle the case where data series may have different
-        stop/start dates.  The map will contain one entry for every data series
-        in the workspace(s) plus a special entry 'Index' that contains the 
-        integer index for that particular workspace.  For example:
-            [
-                { 'Symbol' : 'DBC'
-                  'Date'   : '2012-12-31',
-                  'Index'  : 237,
-                  'Open'   : 21.37
-                  .
-                  .
-                  .
-                }
-            ]
-        This structures allows the flexibility for both "portfolio" strategies
-        like the Ivy portfolio as well as rotation/trend-following strategies
-        like the Ivy relative strength selection.
-        
-        TODO - will have to think about the ramifications of not all symbols
-               having bar data for the same dates due to global trading...
+        the strategy.  bars is a :class:`hedgeit.feeds.bars` instance.
+        The framework ensures that the bars are for the same period to handle 
+        the case where data series may have different stop/start dates.  
         '''
         raise NotImplementedError()
 
