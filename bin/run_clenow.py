@@ -33,7 +33,7 @@ usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
         -s <number> : set the stop multiplier (in ATR units) (default = 3.0)
         -n          : no intra-day stops (default = intra-day)
         -t <model>  : model type ('breakout', 'macross', 'rsireversal', 
-                                  'split7s', default = 'breakout')
+                                  'split7s', 'connorsrsi', default = 'breakout')
         -g          : no compounding of equity
         
         --tssb <name>: write out two files for tssb consumption - <name>_long.csv

@@ -30,7 +30,8 @@ class MultiSymFuturesBaseStrategy(Strategy):
         else:
             self._symbols = symbols
         self._barFeed = barFeed
-        self._positions = {}
+        self._longpositions = {}
+        self._shortpositions = {}
         self._started = {}
         for sym in self._symbols:
             feed = self._barFeed.get_feed(sym)
@@ -60,27 +61,28 @@ class MultiSymFuturesBaseStrategy(Strategy):
         
     def getPositions(self, symbol = None):
         if symbol == None:
-            return self._positions
+            ret = dict(self._longpositions)
+            ret.update(self._shortpositions)
+            return ret
         else:
-            poslong = None if not self._positions.has_key('%s-long' % symbol) else self._positions['%s-long' % symbol] 
-            posshort = None if not self._positions.has_key('%s-short' % symbol) else self._positions['%s-short' % symbol]
+            poslong = None if not self._longpositions.has_key(symbol) else self._longpositions[symbol] 
+            posshort = None if not self._shortpositions.has_key(symbol) else self._shortpositions[symbol]
             return (poslong, posshort) 
     
     def prep_bar_feed(self):
         raise NotImplementedError()
     
-    def getPositionKey(self, position):
-        return '%s-%s' % (position.getInstrument(), 'long' if position.isLong() else 'short')
-    
     def hasPosition(self, sym):
-        return self._positions.has_key('%s-long' % sym) or self._positions.has_key('%s-short' % sym)
+        return self._longpositions.has_key(sym) or self._shortpositions.has_key(sym)
     
     def onExitOk(self, position):
-        poskey = self.getPositionKey(position)
-        if self._positions.has_key(poskey):
-            del self._positions[poskey]
+        sym = position.getInstrument()
+        if position.isLong() and self._longpositions.has_key(sym):
+            del self._longpositions[sym]
+        elif position.isShort() and self._shortpositions.has_key(sym):
+            del self._shortpositions[sym]
         else:
-            logger.error('unknown position exit for %s, positions are: %s' % (position.getInstrument(),self._positions)) 
+            logger.error('unknown position exit for %s, positions are: %s' % (sym,self.getPositions())) 
             assert(False)
         
     def __calc_position_size(self, instrument, atr):
@@ -97,8 +99,7 @@ class MultiSymFuturesBaseStrategy(Strategy):
         return (ret, ret * atr * self._db.get(instrument).point_value())
         
     def enterLongRiskSized(self, sym, bar):
-        poskey = '%s-long' % sym
-        if self._positions.has_key(poskey):
+        if self._longpositions.has_key(sym):
             logger.warning('Already have a %s position, will ignore...')
             return
         (pos_size, risk) = self.__calc_position_size(sym, bar.atr())
@@ -107,11 +108,10 @@ class MultiSymFuturesBaseStrategy(Strategy):
         self._tradeHigh[sym] = bar.close()
         if self._stop != None and self._intraday:
             self.exitPosition(position, stopPrice=self._tradeHigh[sym]-self._stop*bar.atr(), goodTillCanceled=True)
-        self._positions[poskey] = position
+        self._longpositions[sym] = position
 
     def enterShortRiskSized(self, sym, bar):
-        poskey = '%s-short' % sym
-        if self._positions.has_key(poskey):
+        if self._shortpositions.has_key(sym):
             logger.warning('Already have a %s position, will ignore...')
             return
         (pos_size, risk) = self.__calc_position_size(sym, bar.atr())
@@ -120,18 +120,22 @@ class MultiSymFuturesBaseStrategy(Strategy):
         self._tradeLow[sym] = bar.close()
         if self._stop != None and self._intraday:
             self.exitPosition(position, stopPrice=self._tradeLow[sym]+self._stop*bar.atr(), goodTillCanceled=True)
-        self._positions[poskey] = position
+        self._shortpositions[sym] = position
     
     def getCurrentExit(self, position):
-        if position.getExitOrder():
+        sym = position.getInstrument()
+        order = position.getExitOrder()
+        if order and position.getExitOrder().getType() == Order.Type.STOP:
             return position.getExitOrder().getStopPrice()
+        elif order and position.getExitOrder().getType() == Order.Type.MARKET:
+            return self._barFeed.get_feed(sym).get_last_close()
         elif self._stop != None:
             bars = self._barFeed.get_current_bars()
-            cur_atr = bars.get_bar(position.getInstrument()).atr()
+            cur_atr = bars.get_bar(sym).atr()
             if position.isLong():
-                return self._tradeHigh[position.getInstrument()] - self._stop * cur_atr
+                return self._tradeHigh[sym] - self._stop * cur_atr
             else:
-                return self._tradeLow[position.getInstrument()] + self._stop * cur_atr                
+                return self._tradeLow[sym] + self._stop * cur_atr                
         else:
             # indicate no stop with 0.0
             return 0.0
@@ -192,12 +196,10 @@ class MultiSymFuturesBaseStrategy(Strategy):
                 if self._started[sym]:
                     self.onSymBar(sym,bar)
 
-                    poslong = '%s-long' % sym
-                    posshort = '%s-short' % sym                    
-                    if self._positions.has_key(poslong):
-                        self.__handleStopLimit(self._positions[poslong], bar)                    
-                    if self._positions.has_key(posshort):
-                        self.__handleStopLimit(self._positions[posshort], bar)
+                    if self._longpositions.has_key(sym):
+                        self.__handleStopLimit(self._longpositions[sym], bar)                    
+                    if self._shortpositions.has_key(sym):
+                        self.__handleStopLimit(self._shortpositions[sym], bar)
                                             
     def onSymBar(self, symbol, bar):
         '''
@@ -213,5 +215,5 @@ class MultiSymFuturesBaseStrategy(Strategy):
         raise NotImplementedError()
           
     def exitPositions(self):
-        for sym in self._positions:
-            self.exitPosition(self._positions[sym])
+        for position in self.getPositions().itervalues():
+            self.exitPosition(position)

@@ -71,6 +71,47 @@ class RSIReversalStrategy(MultiSymFuturesBaseStrategy):
 
         self._lastRSI[symbol] = bar.rsi()
 
+class ConnorsRSIStrategy(MultiSymFuturesBaseStrategy):
+    def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
+                 riskFactor = 0.002, period = 2, stop = None, limit = None,
+                 intraday = True, tradeStart = None, compounding = True):
+        self._period = period
+        MultiSymFuturesBaseStrategy.__init__(self, 
+                                             barFeed, 
+                                             symbols = symbols,
+                                             broker = broker,
+                                             cash = cash,
+                                             riskFactor = riskFactor,
+                                             atrPeriod = 45,
+                                             stop = None,
+                                             limit = None,
+                                             intraday = intraday,
+                                             tradeStart = tradeStart,
+                                             compounding = compounding
+                                             )
+
+    def prep_bar_feed(self):
+        for sym in self._symbols:
+            feed = self._barFeed.get_feed(sym)
+            feed.insert( talibfunc.SMA('filter_ma',feed,100) )
+            feed.insert( talibfunc.RSI('rsi',feed,self._period) )
+
+    def onSymBar(self, symbol, bar):
+        (long_, short) = self.getPositions(symbol)
+        if not long_:
+            if bar.close() > bar.filter_ma() and bar.rsi() < 10.0:
+                self.enterLongRiskSized(symbol, bar)
+        else:
+            if bar.rsi() > 50.0:
+                self.exitPosition(long_, goodTillCanceled=True)
+                
+        if not short:
+            if bar.close() < bar.filter_ma() and bar.rsi() > 85.0:
+                self.enterShortRiskSized(symbol, bar)
+        else:
+            if bar.rsi() < 50.0:
+                self.exitPosition(short, goodTillCanceled=True)
+
 class Split7sStrategy(MultiSymFuturesBaseStrategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
                  riskFactor = 0.002, period = 7, filter_ = 200, stop = 3.0,
@@ -96,7 +137,7 @@ class Split7sStrategy(MultiSymFuturesBaseStrategy):
     def prep_bar_feed(self):
         for sym in self._symbols:
             feed = self._barFeed.get_feed(sym)
-            feed.insert( talibfunc.SMA('filter_ma',feed,2*self._filter) )
+            feed.insert( talibfunc.SMA('filter_ma',feed,self._filter) )
             feed.insert( talibfunc.MAX('max',feed,self._period) )
             feed.insert( talibfunc.MIN('min',feed,self._period) )
 

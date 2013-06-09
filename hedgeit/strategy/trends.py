@@ -41,6 +41,7 @@ class BreakoutStrategy(MultiSymFuturesBaseStrategy):
                 self.enterLongRiskSized(symbol, bar)
             elif bar.short_ma() <= bar.long_ma() and bar.close() <= bar.min():
                 self.enterShortRiskSized(symbol, bar)
+        # our exits for this strategy are purely handled by stops
 
 
 class MACrossStrategy(MultiSymFuturesBaseStrategy):
@@ -69,23 +70,22 @@ class MACrossStrategy(MultiSymFuturesBaseStrategy):
             feed.insert( talibfunc.SMA('long_ma',feed,self._longPeriod) )
 
     def onSymBar(self, symbol, bar):
-        poslong = '%s-long' % symbol
-        posshort = '%s-short' % symbol                   
-        if bar.short_ma() >= bar.long_ma() and self._positions.has_key(posshort):
-            self.exitPosition(self._positions[posshort], goodTillCanceled=True)
-        elif bar.short_ma() < bar.long_ma() and self._positions.has_key(poslong):
-            self.exitPosition(self._positions[poslong], goodTillCanceled=True)
+        (poslong, posshort) = self.getPositions(symbol)
+        if bar.short_ma() >= bar.long_ma() and posshort:
+            self.exitPosition(posshort, goodTillCanceled=True)
+        elif bar.short_ma() < bar.long_ma() and poslong:
+            self.exitPosition(poslong, goodTillCanceled=True)
 
         # now see if we need to enter a new postion.
         if bar.short_ma() >= bar.long_ma():                        
             # ok - we are supposed to have a long position
-            if not self._positions.has_key(poslong):
+            if not poslong:
                 # no long position - open one...
                 self.enterLongRiskSized(symbol, bar)            
                     
         # now check short
         if bar.short_ma() < bar.long_ma():
             # ok - we are supposed to have a short position
-            if not self._positions.has_key(posshort):
+            if not posshort:
                 # no short position - open one...
                 self.enterShortRiskSized(symbol, bar)
