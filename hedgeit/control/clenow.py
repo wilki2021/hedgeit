@@ -9,7 +9,7 @@ from hedgeit.feeds.feed import Feed
 from hedgeit.feeds.db import InstrumentDb
 from hedgeit.feeds.multifeed import MultiFeed
 from hedgeit.strategy.trends import BreakoutStrategy,MACrossStrategy
-from hedgeit.strategy.rsicounter import RSICounterStrategy
+from hedgeit.strategy.countertrends import RSIReversalStrategy,Split7sStrategy
 from hedgeit.analyzer.drawdown import DrawDown
 from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
@@ -65,8 +65,17 @@ class ClenowController(object):
                                            longPeriod=period, 
                                            stop=stop, 
                                            tradeStart=tradeStart)
-            elif modelType == 'rsicounter':
-                strategy = RSICounterStrategy(self._feed, 
+            elif modelType == 'rsireversal':
+                strategy = RSIReversalStrategy(self._feed, 
+                                           symbols=strategySymbols, 
+                                           broker=self._broker, 
+                                           cash=cash, 
+                                           riskFactor=riskFactor, 
+                                           period=period, 
+                                           stop=stop, 
+                                           tradeStart=tradeStart)
+            elif modelType == 'split7s':
+                strategy = Split7sStrategy(self._feed, 
                                            symbols=strategySymbols, 
                                            broker=self._broker, 
                                            cash=cash, 

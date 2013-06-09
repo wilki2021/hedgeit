@@ -58,8 +58,13 @@ class MultiSymFuturesBaseStrategy(Strategy):
         self._intraday = intraday
         self._dynamic = dynamic
         
-    def getPositions(self):
-        return self._positions
+    def getPositions(self, symbol = None):
+        if symbol == None:
+            return self._positions
+        else:
+            poslong = None if not self._positions.has_key('%s-long' % symbol) else self._positions['%s-long' % symbol] 
+            posshort = None if not self._positions.has_key('%s-short' % symbol) else self._positions['%s-short' % symbol]
+            return (poslong, posshort) 
     
     def prep_bar_feed(self):
         raise NotImplementedError()
