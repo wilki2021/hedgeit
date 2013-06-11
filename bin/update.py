@@ -14,7 +14,7 @@ import sys
 import time
 from hedgeit.common.sendmail import sendmail
 from tssbutil.runtssb import get_process_list,run_tssb
-from hedgeit.control.clenow import ClenowController
+from hedgeit.control.controller import Controller
 from hedgeit.feeds.db import InstrumentDb
 import json
 from hedgeit.common.logger import getLogger
@@ -238,14 +238,6 @@ usage: update.py [-cmd:]
         alert.execute = execute            
     
     def run_hedgeit(self):
-        cash = 250000
-        risk = 0.004
-        period = 50
-        stop = 3.0
-        intraDay = True
-        type_ = 'breakout'
-        compounding = False
-        
         manifest = 'data/future.csv'
         sectormap = json.load(open('examples/clenow-best40.json'))
     
@@ -259,10 +251,21 @@ usage: update.py [-cmd:]
         elog = 'equity.csv'
         rlog = 'returns.csv'
         slog = 'summary.csv'
+
+        parms = { 'riskFactor' : 0.004 }
         
-        ctrl = ClenowController(sectormap, plog, elog, rlog,cash=cash,riskFactor=risk,
-                                period=period,stop=stop,intraDayStop=intraDay,
-                                summaryFile=slog,modelType=type_,compounding=compounding)
+        ctrl = Controller(sectormap, 
+                          modelType = 'breakout',
+                          cash = 250000,
+                          tradeStart = tradeStart,
+                          compounding = False,
+                          positionsFile = plog, 
+                          equityFile = elog, 
+                          returnsFile = rlog,
+                          summaryFile = slog,
+                          parms = parms
+                          )
+        
         ctrl.run(feedStart, tradeStart, tradeEnd)
     
         ctrl.writeAllTrades('trades.csv')        

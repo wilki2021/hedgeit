@@ -16,7 +16,7 @@ Log = getLogger(__name__)
         
 def usage():
     print '''
-usage: hedgeit.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
+usage: backtest.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
     
     Options:
         -h          : show usage
@@ -88,7 +88,7 @@ def main(argv=None):
             return
                          
     if len(args) != 5:
-        Log.error('Not enough arguments to hedgeit!')
+        Log.error('Not enough arguments to backtest!')
         usage()
         sys.exit(1)
         

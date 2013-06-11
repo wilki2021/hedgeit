@@ -61,11 +61,11 @@ If everything worked, there will be some miscellaneous logs followed by somethin
 
 ## Usage
 
-hedgeit currently has a single executable `hedgeit.py`.  This utility executes a Clenow-style strategy for one or more futures markets.  
+hedgeit currently has a single executable `backtest.py`.  This utility executes a Clenow-style strategy for one or more futures markets.  
 
 ### hedgeit - mandatory arguments
 
-    usage: hedgeit.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
+    usage: backtest.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
     
         manifest   : file containing information on tradable instruments.  The file
                      is CSV format - see hedgeit.feeds.db for information
@@ -87,7 +87,7 @@ Finally, there are three dates - feedStart, tradeStart, and tradeEnd.  Each must
 
 So, now an example command-line:
 
-    bin/hedgeit.py data/future.csv examples/clenow-best40.json 2012-01-01 2013-01-01 2013-12-31
+    bin/backtest.py data/future.csv examples/clenow-best40.json 2012-01-01 2013-01-01 2013-12-31
 
 This command uses all defaults and trades for all of 2013.  The feed starts in Jan-2012 so that any positions opened (but not closed) in 2012 are assumed taken on 1/1/2013.  The command will produce output similar to:
 
@@ -156,7 +156,7 @@ This file contains daily equity and margin by sector.
 
 ### hedgeit - options
 
-`hedgeit.py` also supports several options to configure behavior.  These are defined in the usage output as shown here.
+`backtest.py` also supports several options to configure behavior.  These are defined in the usage output as shown here.
 
 	    Options:
 	        -h          : show usage
