@@ -61,11 +61,11 @@ If everything worked, there will be some miscellaneous logs followed by somethin
 
 ## Usage
 
-hedgeit currently has a single executable `run_clenow.py`.  This utility executes a Clenow-style strategy for one or more futures markets.  
+hedgeit currently has a single executable `hedgeit.py`.  This utility executes a Clenow-style strategy for one or more futures markets.  
 
-### run_clenow - mandatory arguments
+### hedgeit - mandatory arguments
 
-    usage: run_clenow.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
+    usage: hedgeit.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
     
         manifest   : file containing information on tradable instruments.  The file
                      is CSV format - see hedgeit.feeds.db for information
@@ -87,7 +87,7 @@ Finally, there are three dates - feedStart, tradeStart, and tradeEnd.  Each must
 
 So, now an example command-line:
 
-    bin/run_clenow.py data/future.csv examples/clenow-best40.json 2012-01-01 2013-01-01 2013-12-31
+    bin/hedgeit.py data/future.csv examples/clenow-best40.json 2012-01-01 2013-01-01 2013-12-31
 
 This command uses all defaults and trades for all of 2013.  The feed starts in Jan-2012 so that any positions opened (but not closed) in 2012 are assumed taken on 1/1/2013.  The command will produce output similar to:
 
@@ -154,31 +154,23 @@ This file contains daily equity and margin by sector.
     2013-01-02 00:00:00,522.70,6450.00,2257.50,19050.00,5807.50,10300.00,305.30,12150.00,652.50,14500.00,9545.50,62450.00
     2013-01-03 00:00:00,2492.60,6450.00,-4036.25,19050.00,4512.50,10300.00,9.50,12150.00,4010.00,23500.00,6988.35,71450.00
 
-### run_clenow - options
+### hedgeit - options
 
-`run_clenow.py` also supports several options to configure behavior.  These are defined in the usage output as shown here.
+`hedgeit.py` also supports several options to configure behavior.  These are defined in the usage output as shown here.
 
-        Options:
-           -h          : show usage
-           -c <number> : set the starting (per sector) equity (default = 1000000)
-           -r <number> : set the risk factor (default = 0.002)
-           -p <integer>: set the strategy period (default = 50)
-                         the meaning of period is strategy-dependent as follows:
-                           breakout - breakout min/max = period
-                                      short moving average = period
-                                      long moving average = period*2
-                           macross  - short moving average = period / 10
-                                      long moving average = period
-                           rsicounter-rsi period = period 
-           -s <number> : set the stop multiplier (in ATR units) (default = 3.0)
-           -n          : no intra-day stops (default = intra-day)
-           -t          : model type ('breakout', 'macross', or 'rsicounter', 
-                         default = 'breakout')
-           -g          : no compounding of equity
-        
-           -tssb <name>: write out two files for tssb consumption - <name>_long.csv
-                         and <name>_short.csv containing long and short trades
-                         respectively.   
+	    Options:
+	        -h          : show usage
+	        -c <number> : set the starting (per sector) equity (default = 1000000)
+	        -p <parms>  : model parameters.  Formatted as comma separated list of
+	                      key=value pairs.  ex.
+	                          atrPeriod=100,period=7
+	        -t <model>  : model type ('breakout', 'macross', 'rsireversal', 
+	                                  'split7s', 'connorsrsi', default = 'breakout')
+	        -g          : no compounding of equity
+	        
+	        --tssb <name>: write out two files for tssb consumption - <name>_long.csv
+	                      and <name>_short.csv containing long and short trades
+	                      respectively.   
         
 Most options are parameters straight out of the basic Clenow breakout strategy, but a few warrant additional treatment.
 

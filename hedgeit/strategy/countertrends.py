@@ -1,48 +1,45 @@
 '''
-hedgeit.strategy.strategy
+hedgeit.strategy.countertrends
 
 Contains:
-  class RSICounterStrategy
+  class RSIReversalStrategy
+  class ConnorsRSIStrategy
+  class Split7sStrategy
 '''
 
 from msymfut import MultiSymFuturesBaseStrategy
 from hedgeit.feeds.indicators import talibfunc
-from hedgeit.feeds.db import InstrumentDb
-from hedgeit.strategy.strategy import Strategy
-from hedgeit.broker.brokers import BacktestingFuturesBroker
-from hedgeit.feeds.indicators.atr import ATR
 from hedgeit.common.logger import getLogger
-from hedgeit.broker.commissions import FuturesCommission
-import numpy
-import datetime
 
 logger = getLogger("strategy.macross")
 
 class RSIReversalStrategy(MultiSymFuturesBaseStrategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, period = 7, stop = 2.0, limit = 2.5,
-                 intraday = True, tradeStart = None, compounding = True):
-        self._period = period
+                 compounding = True, parms = None):
         MultiSymFuturesBaseStrategy.__init__(self, 
                                              barFeed, 
                                              symbols = symbols,
                                              broker = broker,
                                              cash = cash,
-                                             riskFactor = riskFactor,
-                                             atrPeriod = 2 * period,
-                                             stop = stop,
-                                             limit = limit,
-                                             intraday = intraday,
-                                             tradeStart = tradeStart,
-                                             compounding = compounding
+                                             compounding = compounding,
+                                             parms = parms
                                              )
         self._lastRSI = {}
         self._tripped = {}
 
+    def defaultParms(self):
+        ret = MultiSymFuturesBaseStrategy.defaultParms(self)
+        ret['atrPeriod']    = 14
+        ret['period']       = 7
+        ret['stop']         = 3.0
+        ret['intradayStop'] = True
+        ret['limit']        = 2.5
+        return ret
+
     def prep_bar_feed(self):
         for sym in self._symbols:
             feed = self._barFeed.get_feed(sym)
-            feed.insert( talibfunc.RSI('rsi',feed,self._period) )
+            feed.insert( talibfunc.RSI('rsi',feed,self._parms['period']) )
 
     def onSymBar(self, symbol, bar):
         if not self._lastRSI.has_key(symbol):
@@ -73,28 +70,30 @@ class RSIReversalStrategy(MultiSymFuturesBaseStrategy):
 
 class ConnorsRSIStrategy(MultiSymFuturesBaseStrategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, period = 2, stop = None, limit = None,
-                 intraday = True, tradeStart = None, compounding = True):
-        self._period = period
+                 compounding = True, parms = None):
         MultiSymFuturesBaseStrategy.__init__(self, 
                                              barFeed, 
                                              symbols = symbols,
                                              broker = broker,
                                              cash = cash,
-                                             riskFactor = riskFactor,
-                                             atrPeriod = 45,
-                                             stop = None,
-                                             limit = None,
-                                             intraday = intraday,
-                                             tradeStart = tradeStart,
-                                             compounding = compounding
+                                             compounding = compounding,
+                                             parms = parms
                                              )
+
+    def defaultParms(self):
+        ret = MultiSymFuturesBaseStrategy.defaultParms(self)
+        ret['atrPeriod']    = 45
+        ret['period']       = 2
+        ret['filterPeriod'] = 100
+        ret['stop']         = None
+        ret['limit']        = None
+        return ret
 
     def prep_bar_feed(self):
         for sym in self._symbols:
             feed = self._barFeed.get_feed(sym)
-            feed.insert( talibfunc.SMA('filter_ma',feed,100) )
-            feed.insert( talibfunc.RSI('rsi',feed,self._period) )
+            feed.insert( talibfunc.SMA('filter_ma',feed,self._parms['filterPeriod']) )
+            feed.insert( talibfunc.RSI('rsi',feed,self._parms['period']) )
 
     def onSymBar(self, symbol, bar):
         (long_, short) = self.getPositions(symbol)
@@ -114,32 +113,31 @@ class ConnorsRSIStrategy(MultiSymFuturesBaseStrategy):
 
 class Split7sStrategy(MultiSymFuturesBaseStrategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, period = 7, filter_ = 200, stop = 3.0,
-                 intraday = True, tradeStart = None, compounding = True):
-        self._period = period
-        self._filter = filter_
+                 compounding = True, parms = None):
         MultiSymFuturesBaseStrategy.__init__(self, 
                                              barFeed, 
                                              symbols = symbols,
                                              broker = broker,
                                              cash = cash,
-                                             riskFactor = riskFactor,
-                                             atrPeriod = filter_,
-                                             stop = stop,
-                                             limit = None,
-                                             intraday = intraday,
-                                             tradeStart = tradeStart,
-                                             compounding = compounding
+                                             compounding = compounding,
+                                             parms = parms
                                              )
-        self._lastRSI = {}
-        self._tripped = {}
+
+    def defaultParms(self):
+        ret = MultiSymFuturesBaseStrategy.defaultParms(self)
+        ret['atrPeriod']    = 45
+        ret['period']       = 7
+        ret['filterPeriod'] = 200
+        ret['stop']         = 3.0
+        ret['limit']        = None
+        return ret
 
     def prep_bar_feed(self):
         for sym in self._symbols:
             feed = self._barFeed.get_feed(sym)
-            feed.insert( talibfunc.SMA('filter_ma',feed,self._filter) )
-            feed.insert( talibfunc.MAX('max',feed,self._period) )
-            feed.insert( talibfunc.MIN('min',feed,self._period) )
+            feed.insert( talibfunc.SMA('filter_ma',feed,self._parms['filterPeriod']) )
+            feed.insert( talibfunc.MAX('max',feed,self._parms['period']) )
+            feed.insert( talibfunc.MIN('min',feed,self._parms['period']) )
 
     def onSymBar(self, symbol, bar):
         if not self.hasPosition(symbol):

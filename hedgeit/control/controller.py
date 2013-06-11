@@ -8,8 +8,7 @@ from hedgeit.analyzer.istrategy import InstrumentedStrategy
 from hedgeit.feeds.feed import Feed
 from hedgeit.feeds.db import InstrumentDb
 from hedgeit.feeds.multifeed import MultiFeed
-from hedgeit.strategy.trends import BreakoutStrategy,MACrossStrategy
-from hedgeit.strategy.countertrends import RSIReversalStrategy,Split7sStrategy,ConnorsRSIStrategy
+from hedgeit.strategy.factory import StrategyFactory
 from hedgeit.analyzer.drawdown import DrawDown
 from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
@@ -17,22 +16,23 @@ from hedgeit.broker.orders import Order
 from alert import Alert
 import numpy
 from hedgeit.common.logger import getLogger
-import time
 
 logger = getLogger("broker.backtesting")
         
-class ClenowController(object):
-    def __init__(self, sectorMap, positionsFile, equityFile, returnsFile, \
-                 cash = 1000000, riskFactor = 0.002, period=50, stop=3.0, \
-                 tradeStart=None, intraDayStop = True, summaryFile=None,
-                 modelType=None, compounding = True):
+class Controller(object):
+    def __init__(self, sectorMap, 
+                 modelType=None, cash = 1000000, tradeStart=None, compounding = True,
+                 positionsFile=None, equityFile=None, returnsFile=None, summaryFile=None,
+                 parms = None
+                ):
 
         self._runGroups = {}
         self._startingCash = cash    
 
         self._db = InstrumentDb.Instance()
         self._feed = MultiFeed()
-        self._broker = BacktestingFuturesBroker(cash, self._feed, commission=FuturesCommission(2.50)) 
+        self._broker = BacktestingFuturesBroker(cash, self._feed, commission=FuturesCommission(2.50))
+        show = True 
         for sec in sectorMap:
             for sym in sectorMap[sec]:
                 self._feed.register_feed(Feed(self._db.get(sym)))
@@ -44,71 +44,37 @@ class ClenowController(object):
             # rgkey = '%s-%s' % (sec, sym)           
             strategySymbols = sectorMap[sec]
             rgkey = sec           
-            if not modelType or modelType == 'breakout':
-                strategy = BreakoutStrategy(self._feed, 
-                                            symbols=strategySymbols, 
-                                            broker=self._broker, 
-                                            cash=cash, 
-                                            riskFactor=riskFactor, 
-                                            period=period, 
-                                            stop=stop,
-                                            intraday=intraDayStop, 
-                                            tradeStart=tradeStart,
-                                            compounding=compounding)
-            elif modelType == 'macross':
-                strategy = MACrossStrategy(self._feed, 
-                                           symbols=strategySymbols, 
-                                           broker=self._broker, 
-                                           cash=cash, 
-                                           riskFactor=riskFactor, 
-                                           shortPeriod=period / 10,
-                                           longPeriod=period, 
-                                           stop=stop, 
-                                           tradeStart=tradeStart)
-            elif modelType == 'rsireversal':
-                strategy = RSIReversalStrategy(self._feed, 
-                                           symbols=strategySymbols, 
-                                           broker=self._broker, 
-                                           cash=cash, 
-                                           riskFactor=riskFactor, 
-                                           period=period, 
-                                           stop=stop, 
-                                           tradeStart=tradeStart)
-            elif modelType == 'split7s':
-                strategy = Split7sStrategy(self._feed, 
-                                           symbols=strategySymbols, 
-                                           broker=self._broker, 
-                                           cash=cash, 
-                                           riskFactor=riskFactor, 
-                                           period=period, 
-                                           stop=stop, 
-                                           tradeStart=tradeStart)
-            elif modelType == 'connorsrsi':
-                strategy = ConnorsRSIStrategy(self._feed, 
-                                           symbols=strategySymbols, 
-                                           broker=self._broker, 
-                                           cash=cash, 
-                                           riskFactor=riskFactor, 
-                                           period=period, 
-                                           stop=stop, 
-                                           tradeStart=tradeStart)
-            else:
-                raise Exception('Unsupported modelType = %s' % modelType)
+            if not modelType:
+                modelType = 'breakout'
+                                
+            strategy = StrategyFactory.create(modelType, 
+                                              self._feed, 
+                                              symbols=strategySymbols, 
+                                              broker=self._broker, 
+                                              cash=cash, 
+                                              compounding=compounding,
+                                              parms = parms)
             
             self._runGroups[rgkey] = InstrumentedStrategy(strategy)
-            
+            if show:
+                show = False
+                strategy.showParms()
+                
         self._trading = False
-        self._posfile = open(positionsFile,"w")
-        self._equityfile = open(equityFile,"w")
-        self._returnsfile = open(returnsFile,"w")
-        if summaryFile:
-            self._summaryfile = open(summaryFile,"w")
-        else:
-            self._summaryfile = open("/dev/null","w")
+        self._posfile = self.__openFileorNull(positionsFile)
+        self._equityfile = self.__openFileorNull(equityFile)
+        self._returnsfile = self.__openFileorNull(returnsFile)
+        self._summaryfile = self.__openFileorNull(summaryFile)
         
         self._dd = DrawDown()
         self._dd.attached(self)
         self._positionAlerts = []  
+        
+    def __openFileorNull(self, file_):
+        if file_:
+            return open(file_,'w')
+        else:
+            return open('/dev/null','w')
         
     def getBroker(self):
         return self._broker

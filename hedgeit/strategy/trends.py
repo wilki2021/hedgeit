@@ -10,29 +10,31 @@ from hedgeit.feeds.indicators import talibfunc
 
 class BreakoutStrategy(MultiSymFuturesBaseStrategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, period = 50, stop = 3.0, intraday = True, 
-                 tradeStart = None, compounding = True):
-        self._period = period
+                 compounding = True, parms = None):
         MultiSymFuturesBaseStrategy.__init__(self, 
                                              barFeed, 
                                              symbols = symbols,
                                              broker = broker,
                                              cash = cash,
-                                             riskFactor = riskFactor,
-                                             atrPeriod = 2 * period,
-                                             stop = stop,
-                                             intraday = intraday,
-                                             tradeStart = tradeStart,
-                                             compounding = compounding
+                                             compounding = compounding,
+                                             parms = parms
                                              )
 
+    def defaultParms(self):
+        ret = MultiSymFuturesBaseStrategy.defaultParms(self)
+        ret['period']       = 50
+        ret['stop']         = 3.0
+        ret['intradayStop'] = True
+        return ret
+        
     def prep_bar_feed(self):
+        period = self._parms['period']
         for sym in self._symbols:
             feed = self._barFeed.get_feed(sym)
-            feed.insert( talibfunc.SMA('short_ma',feed,self._period) )
-            feed.insert( talibfunc.SMA('long_ma',feed,2*self._period) )
-            feed.insert( talibfunc.MAX('max',feed,self._period) )
-            feed.insert( talibfunc.MIN('min',feed,self._period) )
+            feed.insert( talibfunc.SMA('short_ma',feed,period) )
+            feed.insert( talibfunc.SMA('long_ma',feed,2*period) )
+            feed.insert( talibfunc.MAX('max',feed,period) )
+            feed.insert( talibfunc.MIN('min',feed,period) )
 
     def onSymBar(self, symbol, bar):
         # only consider a new trade if we don't already have one
@@ -43,31 +45,31 @@ class BreakoutStrategy(MultiSymFuturesBaseStrategy):
                 self.enterShortRiskSized(symbol, bar)
         # our exits for this strategy are purely handled by stops
 
-
 class MACrossStrategy(MultiSymFuturesBaseStrategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, shortPeriod = 20, longPeriod = 200, stop = None, 
-                 intraday = True, tradeStart = None, compounding = True):
-        self._shortPeriod = shortPeriod
-        self._longPeriod = longPeriod
+                 compounding = True, parms = None):
         MultiSymFuturesBaseStrategy.__init__(self, 
                                              barFeed, 
                                              symbols = symbols,
                                              broker = broker,
                                              cash = cash,
-                                             riskFactor = riskFactor,
-                                             atrPeriod = longPeriod / 2,
-                                             stop = stop,
-                                             intraday = intraday,
-                                             tradeStart = tradeStart,
-                                             compounding = compounding
+                                             compounding = compounding,
+                                             parms = parms
                                              )
+
+    def defaultParms(self):
+        ret = MultiSymFuturesBaseStrategy.defaultParms(self)
+        ret['shortPeriod']  = 20
+        ret['longPeriod']   = 200
+        ret['stop']         = 3.0
+        ret['intradayStop'] = True
+        return ret
 
     def prep_bar_feed(self):
         for sym in self._symbols:
             feed = self._barFeed.get_feed(sym)
-            feed.insert( talibfunc.SMA('short_ma',feed,self._shortPeriod) )
-            feed.insert( talibfunc.SMA('long_ma',feed,self._longPeriod) )
+            feed.insert( talibfunc.SMA('short_ma',feed,self._parms['shortPeriod']) )
+            feed.insert( talibfunc.SMA('long_ma',feed,self._parms['longPeriod']) )
 
     def onSymBar(self, symbol, bar):
         (poslong, posshort) = self.getPositions(symbol)

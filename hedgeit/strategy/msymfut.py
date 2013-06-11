@@ -19,9 +19,11 @@ logger = getLogger("strategy.msymfut")
 
 class MultiSymFuturesBaseStrategy(Strategy):
     def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
-                 riskFactor = 0.002, atrPeriod = 100, dynamic = True, 
-                 stop = None, limit = None, intraday = True, 
-                 tradeStart = None, compounding = True):
+                 compounding = True, parms = None):
+        self._parms = self.defaultParms()
+        if parms:
+            self._parms.update(parms)          
+          
         if broker is None:
             broker = BacktestingFuturesBroker(cash, barFeed, commission=FuturesCommission(2.50))
         Strategy.__init__(self, barFeed, cash, broker)
@@ -36,29 +38,47 @@ class MultiSymFuturesBaseStrategy(Strategy):
         for sym in self._symbols:
             feed = self._barFeed.get_feed(sym)
             self._started[sym] = False
-            feed.insert( ATR( name='atr', period=atrPeriod ) )            
+            feed.insert( ATR( name='atr', period=self._parms['atrPeriod'] ) )            
             
         self._db = InstrumentDb.Instance()
         
-        self._riskfactor = riskFactor
+        self._riskfactor = self._parms['riskFactor']
 
         self._tradeHigh = {}
         self._tradeLow = {}
-        if tradeStart != None:
-            self._tradeStart = tradeStart
-        else:
-            # set this to an arbitrarily early date so we can compare 
-            # directly in the onBars method below
-            self._tradeStart = datetime.datetime(1900,1,1)
             
         self.prep_bar_feed()
         self._startingCash = cash
         self._compounding = compounding
-        self._stop = stop
-        self._limit = limit
-        self._intraday = intraday
-        self._dynamic = dynamic
+        self._stop = self._parms['stop']
+        self._limit = self._parms['limit']
+        self._intraday = self._parms['intradayStop']
+        self._dynamic = self._parms['dynamicStop']
+
+    def defaultParms(self):
+        '''
+        Override (**optional**) for each strategy to provide a default 
+        parameter dict. 
         
+        Derived classes should always call the base class method to
+        establish a starting dict and then add their own params
+        
+        :returns dict: parms dict
+        '''
+        return { 'riskFactor'    : 0.002,
+                 'atrPeriod'     : 100,
+                 'stop'          : None,
+                 'intradayStop'  : True,
+                 'dynamicStop'   : True,
+                 'limit'         : None,
+                 'intradayLimit' : False,
+                 'dynamicLimit'  : True }
+        
+    def showParms(self):
+        logger.info('Strategy type %s, using parameter set:' % self.__class__.__name__)
+        for k in sorted(self._parms.keys()):
+            logger.info('  %-16s = %s' % (k, self._parms[k]))
+            
     def getPositions(self, symbol = None):
         if symbol == None:
             ret = dict(self._longpositions)
@@ -92,7 +112,8 @@ class MultiSymFuturesBaseStrategy(Strategy):
         target_quant = equity * self._riskfactor / \
                         (self._db.get(instrument).point_value() * atr)
         if target_quant < 1:
-            logger.warning('Insufficient equity to meet risk target for %s, risk multiple %0.3f' % (instrument,1.0/target_quant))
+            # default to minimum of one contract - can lead to outsized risk - warning ends up being annoying
+            # logger.warning('Insufficient equity to meet risk target for %s, risk multiple %0.3f' % (instrument,1.0/target_quant))
             ret = 1
         else:
             ret = round(target_quant)
@@ -190,7 +211,7 @@ class MultiSymFuturesBaseStrategy(Strategy):
             if sym in bars.symbols():
                 bar = bars.get_bar(sym)
                 if not self._started[sym]:
-                    if not bar.has_nan() and bars.datetime() >= self._tradeStart:
+                    if not bar.has_nan():
                         self._started[sym] = True
                                                 
                 if self._started[sym]:
