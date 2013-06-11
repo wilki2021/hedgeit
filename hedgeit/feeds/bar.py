@@ -4,6 +4,7 @@ hedgeit.feeds.bar
 Contains:
   class Bar
 '''
+import numpy
 
 class Bar(object):
     '''
@@ -49,6 +50,14 @@ class Bar(object):
         '''Interface to set any additional generic value associated with the bar.'''
         self._user_defined[name] = value
         
+    def has_nan(self):
+        # we only have to check the user-defined values since none of the 
+        # standard open, high, low, close, etc. can be NAN
+        for val in self._user_defined.itervalues():
+            if numpy.isnan(val):
+                return True
+        return False
+    
     def __getattr__(self, attr):
         '''
         This intercepts access to undefined attributes.  We use this to enable 

@@ -8,10 +8,8 @@ from hedgeit.analyzer.istrategy import InstrumentedStrategy
 from hedgeit.feeds.feed import Feed
 from hedgeit.feeds.db import InstrumentDb
 from hedgeit.feeds.multifeed import MultiFeed
-from hedgeit.strategy.clenow import ClenowBreakoutStrategy
-from hedgeit.strategy.clenow import ClenowBreakoutNoIntraDayStopStrategy
-from hedgeit.strategy.macross import MACrossStrategy
-from hedgeit.strategy.rsicounter import RSICounterStrategy
+from hedgeit.strategy.trends import BreakoutStrategy,MACrossStrategy
+from hedgeit.strategy.countertrends import RSIReversalStrategy,Split7sStrategy,ConnorsRSIStrategy
 from hedgeit.analyzer.drawdown import DrawDown
 from hedgeit.broker.brokers import BacktestingFuturesBroker
 from hedgeit.broker.commissions import FuturesCommission
@@ -47,26 +45,16 @@ class ClenowController(object):
             strategySymbols = sectorMap[sec]
             rgkey = sec           
             if not modelType or modelType == 'breakout':
-                if intraDayStop:
-                    strategy = ClenowBreakoutStrategy(self._feed, 
-                                                      symbols=strategySymbols, 
-                                                      broker=self._broker, 
-                                                      cash=cash, 
-                                                      riskFactor=riskFactor, 
-                                                      period=period, 
-                                                      stop=stop, 
-                                                      tradeStart=tradeStart,
-                                                      compounding=compounding)
-                else:
-                    strategy = ClenowBreakoutNoIntraDayStopStrategy(self._feed, 
-                                                                    symbols=strategySymbols, 
-                                                                    broker=self._broker, 
-                                                                    cash=cash, 
-                                                                    riskFactor=riskFactor, 
-                                                                    period=period, 
-                                                                    stop=stop, 
-                                                                    tradeStart=tradeStart,
-                                                                    compounding=compounding)
+                strategy = BreakoutStrategy(self._feed, 
+                                            symbols=strategySymbols, 
+                                            broker=self._broker, 
+                                            cash=cash, 
+                                            riskFactor=riskFactor, 
+                                            period=period, 
+                                            stop=stop,
+                                            intraday=intraDayStop, 
+                                            tradeStart=tradeStart,
+                                            compounding=compounding)
             elif modelType == 'macross':
                 strategy = MACrossStrategy(self._feed, 
                                            symbols=strategySymbols, 
@@ -77,8 +65,26 @@ class ClenowController(object):
                                            longPeriod=period, 
                                            stop=stop, 
                                            tradeStart=tradeStart)
-            elif modelType == 'rsicounter':
-                strategy = RSICounterStrategy(self._feed, 
+            elif modelType == 'rsireversal':
+                strategy = RSIReversalStrategy(self._feed, 
+                                           symbols=strategySymbols, 
+                                           broker=self._broker, 
+                                           cash=cash, 
+                                           riskFactor=riskFactor, 
+                                           period=period, 
+                                           stop=stop, 
+                                           tradeStart=tradeStart)
+            elif modelType == 'split7s':
+                strategy = Split7sStrategy(self._feed, 
+                                           symbols=strategySymbols, 
+                                           broker=self._broker, 
+                                           cash=cash, 
+                                           riskFactor=riskFactor, 
+                                           period=period, 
+                                           stop=stop, 
+                                           tradeStart=tradeStart)
+            elif modelType == 'connorsrsi':
+                strategy = ConnorsRSIStrategy(self._feed, 
                                            symbols=strategySymbols, 
                                            broker=self._broker, 
                                            cash=cash, 
@@ -273,14 +279,13 @@ class ClenowController(object):
             for pos in self._runGroups[sec].strategy().getPositions().itervalues():
                 # create a 7-tuple: (date, symbol, desc, quantity, action, risk, stop)
                 entry = pos.getEntryOrder()
-                exit_ = pos.getExitOrder()
                 self._positionAlerts.append( Alert( entry.getExecutionInfo().getDateTime(),
                                                entry.getInstrument(),
                                                self._db.get(entry.getInstrument()).description(),
                                                entry.getQuantity(),
                                                Order.Action.action_strs[entry.getAction()],
                                                pos.getImpliedRisk(),
-                                               exit_.getStopPrice() ) )
+                                               self._runGroups[sec].strategy().getCurrentExit(pos) ) )
                         
         # exit all positions - this needs to happen before we report final equity and returns
         for sec in self._runGroups:
