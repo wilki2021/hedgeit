@@ -125,6 +125,12 @@ class Controller(object):
             
         self._handle_trade_end(lastEmitDate)
         
+    def dumpFeed(self, symbol):
+        feed = self._feed.get_feed(symbol)
+        of = open('%s.csv' % symbol,'w')
+        feed.write_csv(of)
+        of.close()
+        
     def writeAllTrades(self, filename):
         # get one list with all trades
         alltrades = []

@@ -26,11 +26,13 @@ usage: backtest.py <manifest> <sector-map> <feedStart> <tradeStart> <tradeEnd>
                           atrPeriod=100,period=7
         -t <model>  : model type ('breakout', 'macross', 'rsireversal', 
                                   'split7s', 'connorsrsi', default = 'breakout')
-        -g          : no compounding of equity
-        
+        -g          : no compounding of equity        
         --tssb <name>: write out two files for tssb consumption - <name>_long.csv
                       and <name>_short.csv containing long and short trades
-                      respectively.   
+                      respectively.
+        --dump <symbol>: write a <symbol>.csv for the specified symbol that 
+                      contains the full data feed included indicators calculated
+                      by the strategy.
         
     manifest   : file containing information on tradable instruments.  The file
                  is CSV format - see hedgeit.feeds.db for information
@@ -55,7 +57,7 @@ def parseParmString(str_):
 
 def main(argv=None):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hc:p:t:g", ["tssb="])
+        opts, args = getopt.getopt(sys.argv[1:], "hc:p:t:g", ["tssb=","dump="])
     except getopt.GetoptError as err:
         # print help information and exit:
         print str(err) # will print something like "option -a not recognized"
@@ -67,6 +69,7 @@ def main(argv=None):
     compounding = True
     tssb = None
     parms = None
+    dump = None
     for o, a in opts:
         if o == "-c":
             cash = float(a)
@@ -83,6 +86,9 @@ def main(argv=None):
         elif o == "--tssb":
             tssb = a
             Log.info('Writing tssb files with base %s' % tssb)
+        elif o == "--dump":
+            dump = a
+            Log.info('Will output data feed to %s.csv' % dump)
         else:
             usage()
             return
@@ -118,7 +124,9 @@ def main(argv=None):
                       parms = parms
                       )
     ctrl.run(feedStart, tradeStart, tradeEnd)
-
+    if dump:
+        ctrl.dumpFeed(dump)
+        
     tlog = 'trades.csv'
     ctrl.writeAllTrades(tlog)
     if tssb:

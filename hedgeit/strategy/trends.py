@@ -56,12 +56,15 @@ class MACrossStrategy(MultiSymFuturesBaseStrategy):
                                              compounding = compounding,
                                              parms = parms
                                              )
-
+        self.__lastTrade = {}
+        for sym in symbols:
+            self.__lastTrade[sym] = None
+        
     def defaultParms(self):
         ret = MultiSymFuturesBaseStrategy.defaultParms(self)
         ret['shortPeriod']  = 20
         ret['longPeriod']   = 200
-        ret['stop']         = 3.0
+        ret['stop']         = 6.0
         ret['intradayStop'] = True
         return ret
 
@@ -78,16 +81,21 @@ class MACrossStrategy(MultiSymFuturesBaseStrategy):
         elif bar.short_ma() < bar.long_ma() and poslong:
             self.exitPosition(poslong, goodTillCanceled=True)
 
-        # now see if we need to enter a new postion.
-        if bar.short_ma() >= bar.long_ma():                        
+        # now see if we need to enter a new position.  We want to trigger on 
+        # a cross of the two moving averages.  Because we may stop out of a
+        # position (logic in base class) we use the __lastTrade member to
+        # make sure we don't re-enter until the next MA cross
+        if bar.short_ma() >= bar.long_ma() and self.__lastTrade[symbol] != 'long':                        
             # ok - we are supposed to have a long position
             if not poslong:
                 # no long position - open one...
                 self.enterLongRiskSized(symbol, bar)            
+                self.__lastTrade[symbol] = 'long'
                     
         # now check short
-        if bar.short_ma() < bar.long_ma():
+        if bar.short_ma() < bar.long_ma() and self.__lastTrade[symbol] != 'short':
             # ok - we are supposed to have a short position
             if not posshort:
                 # no short position - open one...
                 self.enterShortRiskSized(symbol, bar)
+                self.__lastTrade[symbol] = 'short'
