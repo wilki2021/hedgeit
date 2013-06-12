@@ -114,9 +114,8 @@ class SimMain(object):
                     print 'Error: must have the script template %s in current directory' % s
 
             vars_ = VarParser('%s.TXT' % self._varbase)
-            if os.path.exists(runname):
-                shutil.rmtree(runname)
-            os.mkdir(runname)
+            if not os.path.exists(runname):
+                os.mkdir(runname)
         os.chdir(runname)
     
         if not rescan:
