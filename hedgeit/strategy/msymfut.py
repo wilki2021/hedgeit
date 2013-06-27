@@ -72,7 +72,9 @@ class MultiSymFuturesBaseStrategy(Strategy):
                  'dynamicStop'   : True,
                  'limit'         : None,
                  'intradayLimit' : False,
-                 'dynamicLimit'  : True }
+                 'dynamicLimit'  : True,
+                 'longOnly'      : False,
+                 'shortOnly'     : False }
         
     def showParms(self):
         logger.info('Strategy type %s, using parameter set:' % self.__class__.__name__)
@@ -120,6 +122,9 @@ class MultiSymFuturesBaseStrategy(Strategy):
         return (ret, ret * atr * self._db.get(instrument).point_value())
         
     def enterLongRiskSized(self, sym, bar):
+        if self._parms['shortOnly']:
+            return
+        
         if self._longpositions.has_key(sym):
             logger.warning('Already have a %s position, will ignore...')
             return
@@ -132,6 +137,9 @@ class MultiSymFuturesBaseStrategy(Strategy):
         self._longpositions[sym] = position
 
     def enterShortRiskSized(self, sym, bar):
+        if self._parms['longOnly']:
+            return
+
         if self._shortpositions.has_key(sym):
             logger.warning('Already have a %s position, will ignore...')
             return
