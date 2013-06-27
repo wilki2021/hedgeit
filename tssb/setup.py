@@ -60,8 +60,10 @@ class Main(object):
                 # we need to replace some negative numbers since TSSB
                 # can't handle them.  There are several contracts with 
                 # negatives we only deal with a few.  
-                if targname == 'RB2.csv':
+                if targname == 'RB2.csv' or targname == 'S2.csv':
                     cmd = 'sed -i \'s/\-[\.0-9]*/0\.0001/g\' %s' % targfile
+                    os.system(cmd)
+                    cmd = 'sed -i \'s/0.00000/0\.0001/g\' %s' % targfile
                     os.system(cmd)
                     
                 if targname == 'GO.csv':

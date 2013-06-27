@@ -70,6 +70,7 @@ class UpdateMain(object):
         success = True  
         try:
             if do_update:  
+                print 'Doing update...'
                 self.run_updater()
                 print 'Update successful...'
         except:
@@ -82,6 +83,7 @@ class UpdateMain(object):
         if success:
             try:
                 if do_update:  
+                    print 'Doing export...'
                     self.run_exporter()
                     print 'Export to %s successful...' % self._datadir
             except:
@@ -92,9 +94,12 @@ class UpdateMain(object):
             sys.stdout.flush()
 
         if success:
+            print 'Doing backtest...'
             self.run_hedgeit()
+            print 'Backtest successful...'
             
         if success:
+            print 'Doing TSSB data install...'
             # we need to run the TSSB setup utility to install the
             # updated data files
             tssbsetup = os.path.join(self._basedir,'tssb','setup.py')
