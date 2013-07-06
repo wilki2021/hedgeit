@@ -238,6 +238,14 @@ class Controller(object):
         self._print_sector_positions(datetime)
         
     def _handle_trade_end(self, datetime):
+        # by this point we have consumed the entire feed so we need to make
+        # sure that any existing exit orders are closed.  In a corner case
+        # what can happen is a new trade that will be filled on close in the
+        # executeSessionClose below.  This trade could then hit a stop-loss
+        # from an earlier price in the day
+        for sec in self._runGroups:
+            self._runGroups[sec].strategy().cancelExitOrders()
+
         # first we need new positions to be taken if executed after
         # market close on last bar
         self.getBroker().executeSessionClose()    

@@ -241,6 +241,7 @@ usage: update.py [-cmd:]
         alert.filter_value = val
         alert.filter_thresh = thresh
         alert.execute = execute            
+        print '%-10s alert for %s - filter val %0.5f vs threshold %0.5f' % (alert.action, alert.symbol, alert.filter_value, alert.filter_thresh)
     
     def run_hedgeit(self):
         manifest = 'data/future.csv'

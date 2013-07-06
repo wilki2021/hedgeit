@@ -119,6 +119,7 @@ class MultiSymFuturesBaseStrategy(Strategy):
             ret = 1
         else:
             ret = round(target_quant)
+            
         return (ret, ret * atr * self._db.get(instrument).point_value())
         
     def enterLongRiskSized(self, sym, bar):
@@ -243,6 +244,12 @@ class MultiSymFuturesBaseStrategy(Strategy):
         '''
         raise NotImplementedError()
           
+    def cancelExitOrders(self):
+        for position in self.getPositions().itervalues():
+            if position.getExitOrder():
+                self.getBroker().cancelOrder(position.getExitOrder())
+                
+                    
     def exitPositions(self):
         for position in self.getPositions().itervalues():
             self.exitPosition(position)
