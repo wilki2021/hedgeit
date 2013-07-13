@@ -9,6 +9,7 @@ Contains:
 
 from msymfut import MultiSymFuturesBaseStrategy
 from hedgeit.feeds.indicators import talibfunc
+from hedgeit.feeds.indicators.cum import CUM
 from hedgeit.common.logger import getLogger
 
 logger = getLogger("strategy.macross")
@@ -154,3 +155,96 @@ class Split7sStrategy(MultiSymFuturesBaseStrategy):
                 if bar.close() == bar.min():
                     self.exitPosition(short, goodTillCanceled=True)
                     
+class RSIReversal2Strategy(MultiSymFuturesBaseStrategy):
+    def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
+                 compounding = True, parms = None):
+        MultiSymFuturesBaseStrategy.__init__(self, 
+                                             barFeed, 
+                                             symbols = symbols,
+                                             broker = broker,
+                                             cash = cash,
+                                             compounding = compounding,
+                                             parms = parms
+                                             )
+
+    def defaultParms(self):
+        ret = MultiSymFuturesBaseStrategy.defaultParms(self)
+        ret['atrPeriod']    = 45
+        ret['rsi_period']   = 2
+        ret['rsi_lo_thresh']= 5
+        ret['rsi_hi_thresh']= 90
+        ret['filterPeriod'] = 200
+        ret['close_ma_period']= 5
+        ret['stop']         = None
+        ret['limit']        = None
+        return ret
+
+    def prep_bar_feed(self):
+        for sym in self._symbols:
+            feed = self._barFeed.get_feed(sym)
+            feed.insert( talibfunc.SMA('filter_ma',feed,self._parms['filterPeriod']) )
+            feed.insert( talibfunc.SMA('close_ma',feed,self._parms['close_ma_period']) )
+            feed.insert( talibfunc.RSI('rsi',feed,self._parms['rsi_period']) )
+
+    def onSymBar(self, symbol, bar):
+        if not self.hasPosition(symbol):
+            if bar.close() > bar.filter_ma() and bar.rsi() <= self._parms['rsi_lo_thresh']:
+                self.enterLongRiskSized(symbol, bar)
+            elif bar.close() < bar.filter_ma() and bar.rsi() >= self._parms['rsi_hi_thresh']:
+                self.enterShortRiskSized(symbol, bar)
+        else:
+            (long_, short) = self.getPositions(symbol)
+            if long_:
+                if bar.close() >= bar.close_ma():
+                    self.exitPosition(long_, goodTillCanceled=True)
+            if short:
+                if bar.close() <= bar.close_ma():
+                    self.exitPosition(short, goodTillCanceled=True)
+                    
+class CumRSIStrategy(MultiSymFuturesBaseStrategy):
+    def __init__(self, barFeed, symbols = None, broker = None, cash = 1000000,\
+                 compounding = True, parms = None):
+        MultiSymFuturesBaseStrategy.__init__(self, 
+                                             barFeed, 
+                                             symbols = symbols,
+                                             broker = broker,
+                                             cash = cash,
+                                             compounding = compounding,
+                                             parms = parms
+                                             )
+
+    def defaultParms(self):
+        ret = MultiSymFuturesBaseStrategy.defaultParms(self)
+        ret['atrPeriod']     = 45
+        ret['rsi_period']    = 2
+        ret['rsi_cum_length']= 2
+        ret['rsi_cum_hi_thresh']= 30
+        ret['rsi_close_hi_thresh']= 65
+        ret['rsi_cum_lo_thresh']= 80
+        ret['rsi_close_lo_thresh']= 40
+        ret['filterPeriod']  = 200
+        ret['stop']          = None
+        ret['limit']         = None
+        return ret
+
+    def prep_bar_feed(self):
+        for sym in self._symbols:
+            feed = self._barFeed.get_feed(sym)
+            feed.insert( talibfunc.SMA('filter_ma',feed,self._parms['filterPeriod']) )
+            feed.insert( talibfunc.RSI('rsi',feed,self._parms['rsi_period']) )
+            feed.insert( CUM( name='cum_rsi', period=self._parms['rsi_cum_length'], baseIndicator='rsi') )
+
+    def onSymBar(self, symbol, bar):
+        if not self.hasPosition(symbol):
+            if bar.close() > bar.filter_ma() and bar.cum_rsi() <= self._parms['rsi_cum_hi_thresh']:
+                self.enterLongRiskSized(symbol, bar)
+            elif bar.close() < bar.filter_ma() and bar.cum_rsi() >= self._parms['rsi_cum_lo_thresh']:
+                self.enterShortRiskSized(symbol, bar)
+        else:
+            (long_, short) = self.getPositions(symbol)
+            if long_:
+                if bar.rsi() >= self._parms['rsi_close_hi_thresh']:
+                    self.exitPosition(long_, goodTillCanceled=True)
+            if short:
+                if bar.rsi() <= self._parms['rsi_close_lo_thresh']:
+                    self.exitPosition(short, goodTillCanceled=True)

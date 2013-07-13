@@ -7,6 +7,7 @@ import unittest
 import os, datetime, numpy
 from hedgeit.feeds.feed import Feed
 from hedgeit.feeds.indicators.atr import ATR
+from hedgeit.feeds.indicators.cum import CUM
 from hedgeit.feeds.indicators.pvelocity import PriceVelocity
 from hedgeit.feeds.indicators import talibfunc
 from hedgeit.feeds.instrument import Instrument
@@ -119,6 +120,19 @@ class Test(unittest.TestCase):
         
         self.assertTrue(test_util.file_compare('%s/writefeed.refcsv' % os.path.dirname(__file__), feedout))
         os.remove(feedout)
+
+    def testCum(self):
+        w = Feed(self._inst)
+        w.insert( talibfunc.SMA('SMA50',w,50))        
+        w.insert( CUM( name='cum2(SMA50)', period=2, baseIndicator='SMA50') )        
+
+        # just going to spot check a few values randomly (but hard-coded)
+        # we know that the base indicator is NAN up through at least 50
+        cum = w.get_series('cum2(SMA50)')
+        base = w.get_series('SMA50')
+        self.assertAlmostEqual( cum[79], base[79] + base[78], places=4 )
+        self.assertAlmostEqual( cum[112], base[112] + base[111], places=4 )
+        self.assertAlmostEqual( cum[176], base[176] + base[175], places=4 )
 
         
 if __name__ == "__main__":

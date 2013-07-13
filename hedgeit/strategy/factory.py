@@ -40,4 +40,6 @@ StrategyFactory.register('macross', MACrossStrategy)
 StrategyFactory.register('rsireversal', RSIReversalStrategy)
 StrategyFactory.register('connorsrsi', ConnorsRSIStrategy)
 StrategyFactory.register('split7s', Split7sStrategy)
+StrategyFactory.register('rsireversal2', RSIReversal2Strategy)
+StrategyFactory.register('cumrsi', CumRSIStrategy)
         
