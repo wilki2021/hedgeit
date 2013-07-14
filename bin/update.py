@@ -13,7 +13,7 @@ import shutil
 import sys
 import time
 from hedgeit.common.sendmail import sendmail
-from tssbutil.runtssb import get_process_list,run_tssb
+from tssbutil.runtssb import get_process_list,run_tssb,kill_tssb
 from hedgeit.control.controller import Controller
 from hedgeit.feeds.db import InstrumentDb
 import json
@@ -172,6 +172,15 @@ usage: update.py [-cmd:]
  
         cwd = os.getcwd()       
         os.chdir(filtlong)
+        
+        # before we try to delete the db directory we need to make sure there
+        # aren't any tssb processes running since they will likely have open
+        # files in there
+        while 'tssb64.exe' in get_process_list():
+            print 'Warning...tssb64.exe process already running, attempting to kill'
+            kill_tssb()
+            time.sleep(1)
+        
         # important to clear any previous db directory because TSSB doesn't
         # overwrite database files (and silently :()
         if os.path.exists('db'):
